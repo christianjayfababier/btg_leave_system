@@ -1,4 +1,20 @@
- <!-- Head -->
+<?php 
+session_start();
+require_once '../config.php';
+
+//Ensure the user is logged in and is an staff
+if (!isset($_SESSION['role']) && $_SESSION['role'] !='staff') {
+header("Location: ../login.php");
+exit;
+}
+
+// Fetch user_id and firstname from session
+$user_id = $_SESSION['user_id'] ?? ""; // Fetch from session
+$firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
+?>
+
+
+<!-- Head -->
  <?php include 'includes/head.php';?>
 <!-- End Head -->
 
@@ -14,6 +30,7 @@
 <!-- topbar -->
 <?php include 'includes/topbar.php';?>
 <!-- End Topbar -->
+
 
 
 <!-- Main -->
@@ -61,10 +78,10 @@
     <div class="col">
 
       <!-- Form -->
-      <form>
+      <form action="controllers/apply.leave.request.controller.php" method="POST">
       <div class="mb-4">
         <label class="form-label" for="leave_type">Leave Type</label>
-          <select class="form-control" id="leave_type">
+          <select class="form-control" id="leave_type" name="leave_type" required>
             <option value="">Select a leave type</option>
             <option value="sick">Sick Leave</option>
             <option value="vacation">Vacation Leave</option>
@@ -75,11 +92,11 @@
       <div class="mb-4 d-flex gap-3">
         <div class="flex-fill">
           <label class="form-label" for="start_date">Start Date</label>
-          <input class="form-control" id="start_date" type="date" />
+          <input class="form-control" id="start_date" type="date" name="start_date" required />
         </div>
         <div class="flex-fill">
           <label class="form-label" for="end_date">End Date</label>
-          <input class="form-control" id="end_date" type="date" />
+          <input class="form-control" id="end_date" type="date" name="end_date" required />
         </div>
       </div>
 
@@ -93,33 +110,17 @@
           readonly 
           style="height: 45px; overflow: hidden;"
         />
-        </div>
+      </div>
 
         <div class="mb-4">
-          <label class="form-label" for="phone">Phone</label>
-          <input type="text" class="form-control mb-3" id="phone" placeholder="(___)___-____"
-            data-inputmask="'mask': '(999)999-9999'">
+          <label class="form-label" for="reason_for_leave">Reason for Leave</label>
+          <textarea class="form-control mb-3" id="reason_for_leave" name="reason_for_leave" rows="4" required></textarea>
         </div>
-        <div class="mb-4">
-          <label class="form-label" for="location">Location</label>
-          <input class="form-control" id="location" type="text" />
-        </div>
-        <div class="mb-4">
-          <label class="form-label mb-0" for="tiptapExample">About</label>
-          <div class="form-text mt-0 mb-3">
-            A brief description of the customer.
-          </div>
-          <di class="form-control" id="tiptapExample"></di>
-        </div>
-        <div class="mb-7">
-          <label for="dropzone">Files</label>
-          <div class="form-text mt-0 mb-3">
-            Attach files to this customer.
-          </div>
-          <div class="dropzone" id="dropzone"></div>
-        </div>
+        
+        <input type="hidden" name="username" value="<?php echo $username; ?>" />
+
         <button type="submit" class="btn btn-secondary w-100">
-          Save customer
+          Submit Leave Request
         </button>
         <button type="reset" class="btn btn-link w-100 mt-3">
           Reset form
@@ -130,6 +131,7 @@
   </div>
 </main>
 <!-- End Main -->
+
 
 
 <!-- Scripts -->
@@ -156,7 +158,7 @@
       const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
 
       if (daysDiff >= 0) {
-        daysDifferenceInput.value = "Number of Day/s: " + daysDiff + " Days";
+        daysDifferenceInput.value = "Number of Day/s: " + (daysDiff + 1);
         daysWrapper.style.display = 'block';
       } else {
         daysDifferenceInput.value = "";

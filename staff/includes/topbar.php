@@ -20,7 +20,7 @@
                 <span class="avatar avatar-sm avatar-status avatar-status-success me-3">
                   <img class="avatar-img" src="./assets/img/photos/photo-6.jpg" alt="..." />
                 </span>
-                <span class="d-none d-xl-block">Nikki</span>
+                <span class="d-none d-xl-block"><?php echo $_SESSION['firstname']?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="./account/account.html">Account</a></li>
