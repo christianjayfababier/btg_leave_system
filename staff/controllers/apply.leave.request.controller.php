@@ -13,7 +13,7 @@ $firstname = $_SESSION['firstname'];
 
 // Debugging: Verify the session firstname
 if (empty($firstname)) {
-    die("Error: Firstname is not set in the session.");
+    die(json_encode(['status' => 'error', 'message' => 'Error: Firstname is not set in the session.']));
 }
 
 // Check if the form is submitted
@@ -26,13 +26,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Validate required fields
     if (empty($leave_type) || empty($start_date) || empty($end_date) || empty($reason_for_leave)) {
-        echo "All fields are required.";
+        echo json_encode(['status' => 'error', 'message' => 'All fields are required.']);
         exit;
     }
 
     // Ensure end_date is not earlier than start_date
     if (strtotime($end_date) < strtotime($start_date)) {
-        echo "End date cannot be earlier than start date.";
+        echo json_encode(['status' => 'error', 'message' => 'End date cannot be earlier than start date.']);
         exit;
     }
 
@@ -45,20 +45,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param("sssss", $firstname, $leave_type, $start_date, $end_date, $reason_for_leave);
 
         if ($stmt->execute()) {
-            // Redirect or display success message
-            header("Location: ../success.php");
-            exit;
+            // Return a JSON response for success
+            echo json_encode(['status' => 'success', 'message' => 'Leave request submitted successfully.']);
         } else {
-            echo "Error: " . $stmt->error;
+            echo json_encode(['status' => 'error', 'message' => 'Error: ' . $stmt->error]);
         }
 
         // Close the statement
         $stmt->close();
     } else {
-        echo "Error preparing statement: " . $conn->error;
+        echo json_encode(['status' => 'error', 'message' => 'Error preparing statement: ' . $conn->error]);
     }
 } else {
-    echo "Invalid request method.";
+    echo json_encode(['status' => 'error', 'message' => 'Invalid request method.']);
     exit;
 }
 

@@ -133,6 +133,25 @@ $firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
 <!-- End Main -->
 
 
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="successModalLabel">Success</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Leave request submitted successfully.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 
 <!-- Scripts -->
 <script>
@@ -140,6 +159,7 @@ $firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
   const endDateInput = document.getElementById('end_date');
   const daysDifferenceInput = document.getElementById('days_difference');
   const daysWrapper = document.getElementById('days_difference_wrapper');
+  const form = document.querySelector('form');
 
   // Function to set min date to today
   function setMinDateToday() {
@@ -170,9 +190,35 @@ $firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
     }
   }
 
+  // Handle form submission
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const formData = new FormData(form);
+    fetch(form.action, {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'success') {
+        // Show success modal
+        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+        successModal.show();
+        form.reset(); // Reset the form
+        daysWrapper.style.display = 'none'; // Hide days difference
+      } else {
+        alert(data.message || 'An error occurred while submitting the leave request.');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('An unexpected error occurred.');
+    });
+  });
+
   // Initialize
   setMinDateToday();
-
   startDateInput.addEventListener('change', calculateDaysDifference);
   endDateInput.addEventListener('change', calculateDaysDifference);
 </script>
