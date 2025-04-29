@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Verify password
             if (password_verify($password, $user['password'])) {
                 // Store user data in session
-                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['firstname'] = $user['firstname'];
                 $_SESSION['lastname'] = $user['lastname'];
