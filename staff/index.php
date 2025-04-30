@@ -3,13 +3,41 @@ session_start();
 if (!isset($_SESSION["role"]) || $_SESSION["role"] !='staff') {
     header('Location: ../index.php');
     exit();
+
+    
 }
 
 $pageTitle = "Staff Dashboard";
 
 // Include database connection
 require_once '../config.php';
- ?>
+
+
+
+$staffId = $_SESSION['id'];
+$leaveBalance = 0;
+
+$sql = "SELECT leave_balance FROM users WHERE id = ?";
+$stmt = $conn->prepare($sql);
+
+if (!$stmt) {
+    die("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+}
+
+$stmt->bind_param("i", $staffId);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result && $row = $result->fetch_assoc()) {
+    $leaveBalance = $row['leave_balance'];
+}
+
+$stmt->close();
+?>
+
+
+
+
  
  
  <!-- Head -->
@@ -63,7 +91,7 @@ require_once '../config.php';
                     <h4 class="fs-sm fw-normal text-body-secondary mb-1">Leave Balance</h4>
 
                     <!-- Text -->
-                    <div class="fs-4 fw-semibold">#</div>
+                    <div class="fs-4 fw-semibold"><?php echo $leaveBalance; ?></div>
                   </div>
                   <div class="col-auto">
                     <!-- Avatar -->

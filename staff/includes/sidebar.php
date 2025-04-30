@@ -181,7 +181,7 @@
                     <a class="nav-link " href="apply_for_leave.php">Apply for Leave</a>
                     <a class="nav-link " href="my_leave_application.php">My Leave Applications </a>
                     <a class="nav-link " href="#">Leave Balance</a>
-                    <a class="nav-link " href="#">Team Calendar </a>
+                    <a class="nav-link " href="team_calendar.php">Team Calendar </a>
                   </nav>
                 </div>
               </div>
