@@ -1,10 +1,9 @@
- <?php
+<?php
 session_start();
-if (!isset($_SESSION["role"]) || $_SESSION["role"] !='staff') {
+
+if (!isset($_SESSION["role"]) || $_SESSION["role"] !== 'staff') {
     header('Location: ../index.php');
     exit();
-
-    
 }
 
 $pageTitle = "Staff Dashboard";
@@ -12,27 +11,116 @@ $pageTitle = "Staff Dashboard";
 // Include database connection
 require_once '../config.php';
 
-
-
-$staffId = $_SESSION['id'];
+// Initialize variables
+$firstname = $_SESSION['firstname'];
 $leaveBalance = 0;
+$upcomingLeave = 'None';
+$leaveHistory = [];
 
-$sql = "SELECT leave_balance FROM users WHERE id = ?";
-$stmt = $conn->prepare($sql);
+// Map leave type codes to readable labels
+$leaveTypeLabels = [
+  'sick' => 'Sick Leave',
+  'vacation' => 'Vacation Leave',
+  'personal' => 'Personal Leave'
+];
 
-if (!$stmt) {
-    die("Prepare failed: (" . $conn->errno . ") " . $conn->error);
+// Function to get full leave label
+function formatLeaveType($type, $map) {
+  return $map[$type] ?? ucfirst($type) . ' Leave';
 }
 
-$stmt->bind_param("i", $staffId);
-$stmt->execute();
-$result = $stmt->get_result();
 
-if ($result && $row = $result->fetch_assoc()) {
-    $leaveBalance = $row['leave_balance'];
+// Get Leave Balance
+if ($stmt = $conn->prepare("SELECT leave_balance FROM users WHERE firstname = ?")) {
+    $stmt->bind_param("s", $firstname);
+    $stmt->execute();
+    $stmt->bind_result($leaveBalance);
+    $stmt->fetch();
+    $stmt->close();
 }
 
-$stmt->close();
+// Get Upcoming Leave
+$currentDate = date('Y-m-d'); // Set current date dynamically
+if ($stmt = $conn->prepare("
+    SELECT start_date, end_date 
+    FROM leave_requests 
+    WHERE firstname = ? 
+      AND start_date >= ? 
+      AND status = 'approved' 
+    ORDER BY start_date ASC 
+    LIMIT 1
+")) {
+    $stmt->bind_param("ss", $firstname, $currentDate);
+    $stmt->execute();
+    $stmt->bind_result($startDate, $endDate);
+    if ($stmt->fetch()) {
+        // Debugging: Check if the query returns data
+        error_log("Upcoming leave found: Start - $startDate, End - $endDate");
+
+        // Format the date range
+        if ($startDate === $endDate) {
+            $upcomingLeave = date("F j, Y", strtotime($startDate));
+        } else {
+            $upcomingLeave = date("F j", strtotime($startDate)) . "–" . date("j, Y", strtotime($endDate));
+        }
+    } else {
+        // Debugging: No results found
+        error_log("No upcoming leave found for user firstname: $firstname");
+        $upcomingLeave = 'None';
+    }
+    $stmt->close();
+} else {
+    // Debugging: SQL preparation error
+    error_log("SQL query preparation failed: " . $conn->error);
+}
+
+
+// Get Leave History
+$leaveHistory = []; // Initialize leave history array
+$currentDate = date('Y-m-d'); // Current date
+
+if ($stmt = $conn->prepare("
+    SELECT leave_type, start_date, end_date 
+    FROM leave_requests 
+    WHERE firstname = ? 
+      AND end_date < ? 
+      AND status = 'approved' 
+    ORDER BY end_date DESC
+")) {
+    $stmt->bind_param("ss", $firstname, $currentDate);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $leaveHistory[] = $row;
+    }
+    $stmt->close();
+}
+
+// Debugging: Log the leave history array
+error_log(print_r($leaveHistory, true));
+
+
+// Get Pending Leave Requests
+$pendingRequests = [];
+
+if ($stmt = $conn->prepare("
+    SELECT leave_type, start_date, end_date 
+    FROM leave_requests 
+    WHERE firstname = ? 
+      AND status = 'pending' 
+    ORDER BY start_date ASC
+")) {
+    $stmt->bind_param("s", $firstname);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $pendingRequests[] = $row;
+    }
+    $stmt->close();
+}
+
+
+
 ?>
 
 
@@ -88,15 +176,12 @@ $stmt->close();
                 <div class="row align-items-center">
                   <div class="col">
                     <!-- Heading -->
-                    <h4 class="fs-sm fw-normal text-body-secondary mb-1">Leave Balance</h4>
-
-                    <!-- Text -->
-                    <div class="fs-4 fw-semibold"><?php echo $leaveBalance; ?></div>
+                    <h4 class="fs-sm fw-normal text-body-secondary mb-1">Leave Balance</h4>         
                   </div>
                   <div class="col-auto">
-                    <!-- Avatar -->
-                    <div class="avatar avatar-lg bg-body text-primary">
-                      <i class="fs-4" data-duoicon="credit-card"></i>
+                    <!-- Leave Balance -->
+                    <div>
+                    <div class="fs-4 fw-semibold"><?php echo $leaveBalance; ?></div>
                     </div>
                   </div>
                 </div>
@@ -110,14 +195,11 @@ $stmt->close();
                   <div class="col">
                     <!-- Heading -->
                     <h4 class="fs-sm fw-normal text-body-secondary mb-1">Upcoming Leave</h4>
-
-                    <!-- Text -->
-                    <div class="fs-4 fw-semibold">#</div>
                   </div>
                   <div class="col-auto">
-                    <!-- Avatar -->
-                    <div class="avatar avatar-lg bg-body text-primary">
-                      <i class="fs-4" data-duoicon="clock"></i>
+                    <!-- Upcoming Leave -->
+                    <div>
+                    <div class="fs-4 fw-semibold"><?php echo $upcomingLeave; ?></div>
                     </div>
                   </div>
                 </div>
@@ -130,317 +212,182 @@ $stmt->close();
 
         <div class="row">
           <div class="col-12 col-xxl-8">
-            <!-- Performance -->
-            <div class="card mb-6">
-              <div class="card-header">
-                <div class="row align-items-center">
-                  <div class="col">
-                    <h3 class="fs-6 mb-0">Pending Request</h3>
-                  </div>
-                  <div class="col-auto fs-sm me-n3">
-                    <span class="material-symbols-outlined text-primary me-1">circle</span>
-                    Total
-                  </div>
-                  <div class="col-auto fs-sm">
-                    <span class="material-symbols-outlined text-dark me-1">circle</span>
-                    Tracked
-                  </div>
-                </div>
-              </div>
-              <div class="card-body">
-                <div class="chart">
-                  <canvas class="chart-canvas" id="userPerformanceChart"></canvas>
-                </div>
-              </div>
-            </div>
 
-            <!-- Projects -->
+           <!-- Pending Leave Requests -->
+<div class="card mb-6">
+  <div class="card-header">
+    <div class="row align-items-center">
+      <div class="col">
+        <h3 class="fs-6 mb-0">Pending Leave Requests</h3>
+      </div>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="fs-sm">Leave Type</th>
+          <th class="fs-sm">Start Date</th>
+          <th class="fs-sm">End Date</th>
+          <th class="fs-sm">Duration</th>
+          <th class="fs-sm">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if (!empty($pendingRequests)): ?>
+          <?php foreach ($pendingRequests as $leave): ?>
+            <tr>
+              <!-- Leave Type + Submitted Date -->
+              <td>
+                <div class="d-flex align-items-center">
+                  <div class="ms-3">
+                    <div>
+                      <?php 
+                        $type = $leave['leave_type'];
+                        echo htmlspecialchars($leaveTypeLabels[$type] ?? ucfirst($type)); 
+                      ?>
+                    </div>
+                    <div class="fs-sm text-body-secondary">
+                      Submitted on <?php echo date("M j, Y", strtotime($leave['submitted_date'] ?? $leave['start_date'])); ?>
+                    </div>
+                  </div>
+                </div>
+              </td>
+
+              <!-- Start Date -->
+              <td>
+                <span class="fs-sm text-body-secondary">
+                  <?php echo date("F j, Y", strtotime($leave['start_date'])); ?>
+                </span>
+              </td>
+
+              <!-- End Date -->
+              <td>
+                <span class="fs-sm text-body-secondary">
+                  <?php echo date("F j, Y", strtotime($leave['end_date'])); ?>
+                </span>
+              </td>
+
+              <!-- Duration -->
+              <td>
+                <?php
+                  $start = strtotime($leave['start_date']);
+                  $end = strtotime($leave['end_date']);
+                  $days = ($end - $start) / (60 * 60 * 24) + 1;
+                ?>
+                <span class="badge bg-light text-body-secondary"><?php echo $days; ?> days</span>
+              </td>
+
+              <!-- Status -->
+              <td>
+                <span class="badge bg-warning">Pending</span>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <tr>
+            <td colspan="5" class="text-center text-muted">No pending requests found.</td>
+          </tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+
+            <!-- Leave History -->
             <div class="card mb-6 mb-xxl-0">
               <div class="card-header">
                 <div class="row align-items-center">
                   <div class="col">
-                    <h3 class="fs-6 mb-0">Active projects</h3>
-                  </div>
-                  <div class="col-auto my-n3 me-n3">
-                    <a class="btn btn-sm btn-link" href="./projects/projects.html">
-                      Browse all
-                      <span class="material-symbols-outlined">arrow_right_alt</span>
-                    </a>
+                    <h3 class="fs-6 mb-0">Leave History</h3>
                   </div>
                 </div>
               </div>
               <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0">
                   <thead>
-                    <th class="fs-sm">Title</th>
-                    <th class="fs-sm">Status</th>
-                    <th class="fs-sm">Author</th>
-                    <th class="fs-sm">Team</th>
+                    <tr>
+                      <th class="fs-sm">Leave Type</th>
+                      <th class="fs-sm">Start Date</th>
+                      <th class="fs-sm">End Date</th>
+                      <th class="fs-sm">Duration</th>
+                      <th class="fs-sm">Status</th>
+                    </tr>
                   </thead>
                   <tbody>
-                    <tr onclick="window.location.href='./projects/project.html'" role="link" tabindex="0">
+                <?php if (!empty($leaveHistory)): ?>
+                  <?php foreach ($leaveHistory as $leave): ?>
+                    <tr>
+                      <!-- Leave Type -->
                       <td>
                         <div class="d-flex align-items-center">
-                          <div class="avatar">
-                            <img class="avatar-img" src="./assets/img/projects/project-1.png" alt="..." />
-                          </div>
-                          <div class="ms-4">
-                            <div>Filters AI</div>
-                            <div class="fs-sm text-body-secondary">Updated on Apr 10, 2024</div>
+                          <div class="ms-3">
+                            <div>
+                              <?php 
+                                $type = $leave['leave_type'];
+                                echo htmlspecialchars($leaveTypeLabels[$type] ?? ucfirst($type)); 
+                              ?>
+                            </div>
+                            <div class="fs-sm text-body-secondary">
+                              Applied on <?php echo date("M j, Y", strtotime($leave['applied_date'] ?? $leave['start_date'])); ?>
+                            </div>
                           </div>
                         </div>
                       </td>
+
+                      <!-- Start Date -->
                       <td>
-                        <span class="badge bg-success-subtle text-success">Ready to Ship</span>
+                        <span class="fs-sm text-body-secondary">
+                          <?php echo date("F j, Y", strtotime($leave['start_date'])); ?>
+                        </span>
                       </td>
+
+                      <!-- End Date -->
                       <td>
-                        <div class="d-flex align-items-center text-nowrap">
-                          <div class="avatar avatar-xs me-2">
-                            <img class="avatar-img" src="./assets/img/photos/photo-2.jpg" alt="..." />
-                          </div>
-                          Michael Johnson
-                        </div>
+                        <span class="fs-sm text-body-secondary">
+                          <?php echo date("F j, Y", strtotime($leave['end_date'])); ?>
+                        </span>
                       </td>
+
+                      <!-- Duration -->
                       <td>
-                        <div class="avatar-group">
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Michael Johnson">
-                            <img class="avatar-img" src="./assets/img/photos/photo-2.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Robert Garcia">
-                            <img class="avatar-img" src="./assets/img/photos/photo-3.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Olivia Davis">
-                            <img class="avatar-img" src="./assets/img/photos/photo-4.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Jessica Miller">
-                            <img class="avatar-img" src="./assets/img/photos/photo-5.jpg" alt="..." />
-                          </div>
-                        </div>
+                        <?php
+                          $start = strtotime($leave['start_date']);
+                          $end = strtotime($leave['end_date']);
+                          $days = ($end - $start) / (60 * 60 * 24) + 1;
+                        ?>
+                        <span class="badge bg-light text-body-secondary"><?php echo $days; ?> days</span>
+                      </td>
+
+                      <!-- Status -->
+                      <td>
+                        <?php
+                          $today = strtotime(date('Y-m-d'));
+                          $status = $end < $today ? 'Completed' : 'Ongoing';
+                          $statusClass = $end < $today ? 'bg-success' : 'bg-warning';
+                        ?>
+                        <span class="badge <?php echo $statusClass; ?>"><?php echo $status; ?></span>
                       </td>
                     </tr>
-                    <tr onclick="window.location.href='./projects/project.html'" role="link" tabindex="0">
-                      <td>
-                        <div class="d-flex align-items-center">
-                          <div class="avatar">
-                            <img class="avatar-img" src="./assets/img/projects/project-2.png" alt="..." />
+                  <?php endforeach; ?>
+                <?php else: ?>
+                  <tr>
+                    <td colspan="5" class="text-center text-muted">No leave history found.</td>
+                  </tr>
+                <?php endif; ?>
+              </tbody>
+
+                              </table>
+                            </div>
                           </div>
-                          <div class="ms-4">
-                            <div>Design landing page</div>
-                            <div class="fs-sm text-body-secondary">Created on Mar 05, 2024</div>
-                          </div>
+
                         </div>
-                      </td>
-                      <td>
-                        <span class="badge bg-danger-subtle text-danger">Cancelled</span>
-                      </td>
-                      <td>
-                        <div class="d-flex align-items-center text-nowrap">
-                          <div class="avatar avatar-xs me-2">
-                            <img class="avatar-img" src="./assets/img/photos/photo-1.jpg" alt="..." />
-                          </div>
-                          Emily Thompson
-                        </div>
-                      </td>
-                      <td>
-                        <div class="avatar-group">
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Olivia Davis">
-                            <img class="avatar-img" src="./assets/img/photos/photo-4.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Jessica Miller">
-                            <img class="avatar-img" src="./assets/img/photos/photo-5.jpg" alt="..." />
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr onclick="window.location.href='./projects/project.html'" role="link" tabindex="0">
-                      <td>
-                        <div class="d-flex align-items-center">
-                          <div class="avatar text-primary">
-                            <i class="fs-4" data-duoicon="book-3"></i>
-                          </div>
-                          <div class="ms-4">
-                            <div>Update documentation</div>
-                            <div class="fs-sm text-body-secondary">Created on Jan 22, 2024</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span class="badge bg-secondary-subtle text-secondary">In Testing</span>
-                      </td>
-                      <td>
-                        <div class="d-flex align-items-center text-nowrap">
-                          <div class="avatar avatar-xs me-2">
-                            <img class="avatar-img" src="./assets/img/photos/photo-2.jpg" alt="..." />
-                          </div>
-                          Michael Johnson
-                        </div>
-                      </td>
-                      <td>
-                        <div class="avatar-group">
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Emily Thompson">
-                            <img class="avatar-img" src="./assets/img/photos/photo-1.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Robert Garcia">
-                            <img class="avatar-img" src="./assets/img/photos/photo-3.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="John Williams">
-                            <img class="avatar-img" src="./assets/img/photos/photo-6.jpg" alt="..." />
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr onclick="window.location.href='./projects/project.html'" role="link" tabindex="0">
-                      <td>
-                        <div class="d-flex align-items-center">
-                          <div class="avatar">
-                            <img class="avatar-img" src="./assets/img/projects/project-3.png" alt="..." />
-                          </div>
-                          <div class="ms-4">
-                            <div>Update Touche</div>
-                            <div class="fs-sm text-body-secondary">Updated on Apr 14, 2024</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span class="badge bg-success-subtle text-success">Ready to Ship</span>
-                      </td>
-                      <td>
-                        <div class="d-flex align-items-center text-nowrap">
-                          <div class="avatar avatar-xs me-2">
-                            <img class="avatar-img" src="./assets/img/photos/photo-5.jpg" alt="..." />
-                          </div>
-                          Jessica Miller
-                        </div>
-                      </td>
-                      <td>
-                        <div class="avatar-group">
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Robert Garcia">
-                            <img class="avatar-img" src="./assets/img/photos/photo-3.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Olivia Davis">
-                            <img class="avatar-img" src="./assets/img/photos/photo-4.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Jessica Miller">
-                            <img class="avatar-img" src="./assets/img/photos/photo-5.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="John Williams">
-                            <img class="avatar-img" src="./assets/img/photos/photo-6.jpg" alt="..." />
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr onclick="window.location.href='./projects/project.html'" role="link" tabindex="0">
-                      <td>
-                        <div class="d-flex align-items-center">
-                          <div class="avatar text-primary">
-                            <i class="fs-4" data-duoicon="box"></i>
-                          </div>
-                          <div class="ms-4">
-                            <div>Add Transactions</div>
-                            <div class="fs-sm text-body-secondary">Created on Apr 25, 2024</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span class="badge bg-light text-body-secondary">Backlog</span>
-                      </td>
-                      <td>
-                        <div class="d-flex align-items-center text-nowrap">
-                          <div class="avatar avatar-xs me-2">
-                            <img class="avatar-img" src="./assets/img/photos/photo-4.jpg" alt="..." />
-                          </div>
-                          Olivia Davis
-                        </div>
-                      </td>
-                      <td>
-                        <div class="avatar-group">
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Robert Garcia">
-                            <img class="avatar-img" src="./assets/img/photos/photo-3.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="John Williams">
-                            <img class="avatar-img" src="./assets/img/photos/photo-6.jpg" alt="..." />
-                          </div>
-                          <div class="avatar avatar-xs" data-bs-toggle="tooltip" data-bs-title="Emily Thompson">
-                            <img class="avatar-img" src="./assets/img/photos/photo-1.jpg" alt="..." />
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-          <div class="col-12 col-xxl-4">
-            <!-- Goals -->
-            <div class="card mb-6">
-  <div class="card-header">
-    <div class="row align-items-center">
-      <div class="col">
-        <h3 class="fs-6 mb-0">Leave History</h3>
-      </div>
-    </div>
-  </div>
-  <div class="card-body py-3">
-    <div class="list-group list-group-flush">
-      <div class="list-group-item px-0">
-        <div class="row align-items-center">
-          <div class="col ms-n2">
-            <h6 class="fs-base fw-normal mb-0">Sample</h6>
-           
-          </div>
-          <div class="col-auto">
-            <span class="text-body-secondary">April 17</span>
-          </div>
-        </div>
-      </div>
-      <div class="list-group-item px-0">
-        <div class="row align-items-center">
-          <div class="col ms-n2">
-            <h6 class="fs-base fw-normal mb-0">Sample</h6>
-           
-          </div>
-          <div class="col-auto">
-            <span class="text-body-secondary">April 15</span>
-          </div>
-        </div>
-      </div>
-      <div class="list-group-item px-0">
-        <div class="row align-items-center">
-          <div class="col ms-n2">
-            <h6 class="fs-base fw-normal mb-0">Sample</h6>
-            
-          </div>
-          <div class="col-auto">
-            <span class="text-body-secondary">April 12</span>
-          </div>
-        </div>
-      </div>
-      <div class="list-group-item px-0">
-        <div class="row align-items-center">
-          <div class="col ms-n2">
-            <h6 class="fs-base fw-normal mb-0">Sample</h6>
-           
-          </div>
-          <div class="col-auto">
-            <span class="text-body-secondary">April 2 </span>
-          </div>
-        </div>
-      </div>
-      <div class="list-group-item px-0">
-        <div class="row align-items-center">
-          <div class="col ms-n2">
-            <h6 class="fs-base fw-normal mb-0">Sample</h6>
-           
-          </div>
-          <div class="col-auto">
-            <span class="text-body-secondary">April 1</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+                        <div class="col-12 col-xxl-4">
+
+
+                        <!-- Leave History Old -->
 
 
             <!-- Activity -->
