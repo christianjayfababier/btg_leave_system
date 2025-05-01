@@ -1,16 +1,10 @@
-
- 
-
-    
-
-    
-    <!-- Sidenav (base) -->
+<!-- Sidenav (base) -->
     <aside class="aside aside-base sidenav-base">
       <nav class="navbar navbar-expand-xl navbar-vertical">
         <div class="container-lg">
           <!-- Brand -->
-          <a class="navbar-brand d-flex align-items-center fs-5 fw-bold px-xl-3 mb-xl-4" href="./index.html">
-            <i class="fs-4 text-secondary me-2" data-duoicon="box-2"></i> Dashbrd
+          <a class="navbar-brand d-flex align-items-center fs-5 fw-bold px-xl-3 mb-xl-4" href="./index.php">
+            <i class="fs-4 text-secondary me-2" data-duoicon="box-2"></i> Bodhitree Group
           </a>
     
           <!-- User -->
@@ -20,7 +14,7 @@
                 <span class="avatar avatar-sm avatar-status avatar-status-success me-3">
                   <img class="avatar-img" src="./assets/img/photos/photo-6.jpg" alt="..." />
                 </span>
-                <span class="d-none d-xl-block">Nikki Williams</span>
+                <span class="d-none d-xl-block"><?php echo $_SESSION['username'] ?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="./account/account.html">Account</a></li>
@@ -144,8 +138,7 @@
               <div class="nav-item">
                 <a
                   class="nav-link active"
-                  href="#"
-                  data-bs-toggle="collapse"
+                  href="index.php"
                   data-bs-target="#dashboards"
                   role="button"
                   aria-expanded="false"
@@ -153,180 +146,44 @@
                 >
                   <span class="material-symbols-outlined me-3">space_dashboard</span> Dashboards
                 </a>
-                <div class="collapse show" id="dashboards">
-                  <nav class="nav nav-pills">
-                    <a class="nav-link active" href="../index.php">Default</a>
-                    <a class="nav-link " href="../crypto.php">Crypto</a>
-                    <a class="nav-link " href="../saas.php">SaaS</a>
-                  </nav>
-                </div>
               </div>
+
+
+              <div class="nav-item">
+                <a
+                  class="nav-link "
+                  href="#"
+                  data-bs-target="#projects"
+                  role="button"
+                  aria-expanded="false"
+                  aria-controls="projects"
+                >
+                  <span class="material-symbols-outlined me-3">list_alt</span> Approval Request
+                </a>     
+              </div>
+
+
+              
               <div class="nav-item">
                 <a
                   class="nav-link "
                   href="#"
                   data-bs-toggle="collapse"
                   data-bs-target="#customers"
-                  role="button"
+              
                   aria-expanded="false"
                   aria-controls="customers"
                 >
-                  <span class="material-symbols-outlined me-3">group</span> Customers
+                  <span class="material-symbols-outlined me-3">group</span> Leave Management
                 </a>
                 <div class="collapse " id="customers">
                   <nav class="nav nav-pills">
-                    <a class="nav-link " href="../customers/customers.php">Customers</a>
-                    <a class="nav-link " href="../customers/customer-details.php">Customer details</a>
-                    <a class="nav-link " href="../customers/customer-new.php">New customer</a>
+                    <a class="nav-link " href="apply_for_leave.php">Apply for Leave</a>
+                    <a class="nav-link " href="my_leave_application.php">My Leave Applications </a>
                   </nav>
                 </div>
               </div>
-              <div class="nav-item">
-                <a
-                  class="nav-link "
-                  href="#"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#projects"
-                  role="button"
-                  aria-expanded="false"
-                  aria-controls="projects"
-                >
-                  <span class="material-symbols-outlined me-3">list_alt</span> Projects
-                </a>
-                <div class="collapse " id="projects">
-                  <nav class="nav nav-pills">
-                    <a class="nav-link " href="../projects/projects.php">Projects</a>
-                    <a class="nav-link " href="../projects/project-overview.php">Project overview</a>
-                    <a class="nav-link " href="../projects/project-new.php">New project</a>
-                  </nav>
-                </div>
-              </div>
-              <div class="nav-item">
-                <a
-                  class="nav-link "
-                  href="#"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#account"
-                  role="button"
-                  aria-expanded="false"
-                  aria-controls="account"
-                >
-                  <span class="material-symbols-outlined me-3">person</span> Account
-                </a>
-                <div class="collapse " id="account">
-                  <nav class="nav nav-pills">
-                    <a class="nav-link " href="account-overview.php">Account overview</a>
-                    <a class="nav-link " href="account-settings.php">Account settings</a>
-                  </nav>
-                </div>
-              </div>
-              <div class="nav-item">
-                <a
-                  class="nav-link "
-                  href="#"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#ecommerce"
-                  role="button"
-                  aria-expanded="false"
-                  aria-controls="ecommerce"
-                >
-                  <span class="material-symbols-outlined me-3">shopping_cart</span> E-commerce
-                </a>
-                <div class="collapse " id="ecommerce">
-                  <nav class="nav nav-pills">
-                    <a class="nav-link " href="../e-commerce/products.php">Products</a>
-                    <a class="nav-link " href="../e-commerce/orders.php">Orders</a>
-                    <a class="nav-link " href="../e-commerce/invoice.php">Invoice</a>
-                    <a class="nav-link " href="../e-commerce/pricing.php">Pricing</a>
-                  </nav>
-                </div>
-              </div>
-              <div class="nav-item">
-                <a
-                  class="nav-link "
-                  href="#"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#posts"
-                  role="button"
-                  aria-expanded="false"
-                  aria-controls="posts"
-                >
-                  <span class="material-symbols-outlined me-3">text_fields</span> Posts
-                </a>
-                <div class="collapse " id="posts">
-                  <nav class="nav nav-pills">
-                    <a class="nav-link " href="../posts/categories.php">Categories</a>
-                    <a class="nav-link " href="../posts/posts.php">Posts</a>
-                    <a class="nav-link " href="../posts/post-new.php">New post</a>
-                  </nav>
-                </div>
-              </div>
-              <div class="nav-item">
-                <a
-                  class="nav-link"
-                  href="#"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#authentication"
-                  role="button"
-                  aria-expanded="false"
-                  aria-controls="authentication"
-                >
-                  <span class="material-symbols-outlined me-3">login</span> Authentication
-                </a>
-                <div class="collapse" id="authentication">
-                  <nav class="nav nav-pills">
-                    <a class="nav-link" href="../auth/sign-in.php" target="_blank">Sign in</a>
-                    <a class="nav-link" href="../auth/sign-up.php" target="_blank">Sign up</a>
-                    <a class="nav-link" href="../auth/password-reset.php" target="_blank">Password reset</a>
-                    <a class="nav-link" href="../auth/verification-code.php" target="_blank">Verification code</a>
-                    <a class="nav-link" href="../auth/error.php" target="_blank">Error</a>
-                  </nav>
-                </div>
-              </div>
-              <div class="nav-item">
-                <a
-                  class="nav-link "
-                  href="#"
-                  data-bs-toggle="collapse"
-                  data-bs-target="#other"
-                  role="button"
-                  aria-expanded="false"
-                  aria-controls="other"
-                >
-                  <span class="material-symbols-outlined me-3">category</span> Misc
-                </a>
-                <div class="collapse " id="other">
-                  <nav class="nav nav-pills">
-                    <a class="nav-link " href="../misc/calendar.php">Calendar</a>
-                  </nav>
-                </div>
-              </div>
-              <div class="nav-item">
-                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#emails" role="button" aria-expanded="false" aria-controls="emails">
-                  <span class="material-symbols-outlined me-3">mail</span> Emails
-                </a>
-                <div class="collapse" id="emails">
-                  <nav class="nav nav-pills">
-                    <a class="nav-link" href="../emails/account-confirmation.php" target="_blank">Account confirmation</a>
-                    <a class="nav-link" href="../emails/new-post.php" target="_blank">New post</a>
-                    <a class="nav-link" href="../emails/order-confirmation.php" target="_blank">Order confirmation</a>
-                    <a class="nav-link" href="../emails/password-reset.php" target="_blank">Password reset</a>
-                    <a class="nav-link" href="../emails/product-update.php" target="_blank">Product update</a>
-                  </nav>
-                </div>
-              </div>
-              <div class="nav-item">
-                <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#mdoals" role="button" aria-expanded="false" aria-controls="mdoals">
-                  <span class="material-symbols-outlined me-3">tooltip</span> Modals
-                </a>
-                <div class="collapse" id="mdoals">
-                  <nav class="nav nav-pills">
-                    <a class="nav-link" href="#productModal" data-bs-toggle="offcanvas" aria-controls="productModal">Product</a>
-                    <a class="nav-link" href="#orderModal" data-bs-toggle="offcanvas" aria-controls="orderModal">Order</a>
-                    <a class="nav-link" href="#eventModal" data-bs-toggle="modal" aria-controls="eventModal">Event</a>
-                  </nav>
-                </div>
-              </div>
+              
             </nav>
     
           
