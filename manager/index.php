@@ -1,41 +1,35 @@
 <?php
 session_start();
 
-if (!isset($_SESSION["role"]) || $_SESSION["role"] !== 'manager') {
+if (!isset($_SESSION["role"], $_SESSION["user_id"], $_SESSION["firstname"]) || $_SESSION["role"] !== 'manager') {
     header('Location: ../index.php');
     exit();
 }
 
-$pageTitle = "Admin Dashboard";
-
-// Include database connection
 require_once '../config.php';
 
-// Initialize variables
+$pageTitle = "Manager Dashboard";
+$loggedInUserId = $_SESSION['user_id'];
 $firstname = $_SESSION['firstname'];
+
 $leaveBalance = 0;
 $upcomingLeave = 'None';
 $leaveHistory = [];
-$pendingRequests = []; // array of detailed pending requests
+$pendingRequests = [];
 
-// Leave type mapping
 $leaveTypeLabels = [
   'sick' => 'Sick Leave',
   'vacation' => 'Vacation Leave',
   'personal' => 'Personal Leave'
 ];
 
-function formatLeaveType($type, $map) {
-  return $map[$type] ?? ucfirst($type) . ' Leave';
-}
-
 // Get Leave Balance
-if ($stmt = $conn->prepare("SELECT leave_balance FROM users WHERE firstname = ?")) {
-  $stmt->bind_param("s", $firstname);
-  $stmt->execute();
-  $stmt->bind_result($leaveBalance);
-  $stmt->fetch();
-  $stmt->close();
+if ($stmt = $conn->prepare("SELECT leave_balance FROM users WHERE id = ?")) {
+    $stmt->bind_param("i", $loggedInUserId);
+    $stmt->execute();
+    $stmt->bind_result($leaveBalance);
+    $stmt->fetch();
+    $stmt->close();
 }
 
 // Get Upcoming Leave
@@ -43,78 +37,79 @@ $currentDate = date('Y-m-d');
 if ($stmt = $conn->prepare("
   SELECT start_date, end_date 
   FROM leave_requests 
-  WHERE firstname = ? 
+  WHERE user_id = ? 
     AND start_date >= ? 
     AND status = 'approved' 
   ORDER BY start_date ASC 
   LIMIT 1
 ")) {
-  $stmt->bind_param("ss", $firstname, $currentDate);
-  $stmt->execute();
-  $stmt->bind_result($startDate, $endDate);
-  if ($stmt->fetch()) {
-      if ($startDate === $endDate) {
-          $upcomingLeave = date("F j, Y", strtotime($startDate));
-      } else {
-          $upcomingLeave = date("F j", strtotime($startDate)) . "–" . date("j, Y", strtotime($endDate));
-      }
-  }
-  $stmt->close();
+    $stmt->bind_param("is", $loggedInUserId, $currentDate);
+    $stmt->execute();
+    $stmt->bind_result($startDate, $endDate);
+    if ($stmt->fetch()) {
+        $upcomingLeave = ($startDate === $endDate)
+            ? date("F j, Y", strtotime($startDate))
+            : date("F j", strtotime($startDate)) . "–" . date("j, Y", strtotime($endDate));
+    }
+    $stmt->close();
 }
 
 // Get Leave History
 if ($stmt = $conn->prepare("
   SELECT leave_type, start_date, end_date 
   FROM leave_requests 
-  WHERE firstname = ? 
+  WHERE user_id = ? 
     AND end_date < ? 
     AND status = 'approved' 
   ORDER BY end_date DESC
 ")) {
-  $stmt->bind_param("ss", $firstname, $currentDate);
-  $stmt->execute();
-  $result = $stmt->get_result();
-  while ($row = $result->fetch_assoc()) {
-      $leaveHistory[] = $row;
-  }
-  $stmt->close();
+    $stmt->bind_param("is", $loggedInUserId, $currentDate);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $leaveHistory[] = $row;
+    }
+    $stmt->close();
 }
 
-// Get Detailed Pending Leave Requests
+// Get Pending Requests assigned to this manager
 if ($stmt = $conn->prepare("
-  SELECT leave_type, start_date, end_date 
-  FROM leave_requests 
-  WHERE firstname = ? 
-    AND status = 'pending' 
-  ORDER BY start_date ASC
+  SELECT 
+    lr.id,
+    lr.leave_type,
+    lr.start_date,
+    lr.end_date,
+    lr.request_timestamp,
+    lr.status,
+    u.firstname,
+    u.lastname
+  FROM leave_requests lr
+  JOIN user_assignments ua ON lr.user_id = ua.assignee_id
+  JOIN users u ON lr.user_id = u.id
+  WHERE ua.approver_id = ?
+    AND lr.status = 'pending'
+  ORDER BY lr.request_timestamp DESC
 ")) {
-  $stmt->bind_param("s", $firstname);
-  $stmt->execute();
-  $result = $stmt->get_result();
-  while ($row = $result->fetch_assoc()) {
-      $pendingRequests[] = $row;
-  }
-  $stmt->close();
+    $stmt->bind_param("i", $loggedInUserId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $pendingRequests[] = $row;
+    }
+    $stmt->close();
 }
 
-// Get Summary Counts
-$pendingCount = 0;
-$approvedCount = 0;
-$deniedCount = 0;
+// Summary Counts (overall)
+$pendingCount = $approvedCount = $deniedCount = 0;
 
-$queryPending = mysqli_query($conn, "SELECT COUNT(*) as total FROM leave_requests WHERE status = 'pending'");
-if ($row = mysqli_fetch_assoc($queryPending)) {
-    $pendingCount = $row['total'];
+if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE status = 'pending'")) {
+    $pendingCount = $result->fetch_assoc()['total'];
 }
-
-$queryApproved = mysqli_query($conn, "SELECT COUNT(*) as total FROM leave_requests WHERE status = 'approved'");
-if ($row = mysqli_fetch_assoc($queryApproved)) {
-    $approvedCount = $row['total'];
+if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE status = 'approved'")) {
+    $approvedCount = $result->fetch_assoc()['total'];
 }
-
-$queryDenied = mysqli_query($conn, "SELECT COUNT(*) as total FROM leave_requests WHERE status = 'denied'");
-if ($row = mysqli_fetch_assoc($queryDenied)) {
-    $deniedCount = $row['total'];
+if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE status = 'denied'")) {
+    $deniedCount = $result->fetch_assoc()['total'];
 }
 ?>
 
@@ -122,7 +117,6 @@ if ($row = mysqli_fetch_assoc($queryDenied)) {
 
 
 
- 
  
  <!-- Head -->
  <?php include 'includes/head.php';?>
@@ -212,19 +206,16 @@ if ($row = mysqli_fetch_assoc($queryDenied)) {
     </div>
   </div>
 </div>
-
-
-
-
         <div class="row">
           <div class="col-12 col-xxl-8">
 
-           <!-- Pending Leave Requests -->
+
+           <!-- Pending Leave Applications -->
 <div class="card mb-6">
   <div class="card-header">
     <div class="row align-items-center">
       <div class="col">
-        <h3 class="fs-6 mb-0">Pending Leave Requests</h3>
+        <h3 class="fs-6 mb-0">Pending Leave Applications</h3>
       </div>
     </div>
   </div>
@@ -240,62 +231,46 @@ if ($row = mysqli_fetch_assoc($queryDenied)) {
         </tr>
       </thead>
       <tbody>
-        <?php if (!empty($pendingRequests)): ?>
-          <?php foreach ($pendingRequests as $leave): ?>
-            <tr>
-              <!-- Leave Type + Submitted Date -->
-              <td>
-                <div class="d-flex align-items-center">
-                  <div class="ms-3">
-                    <div>
-                      <?php 
-                        $type = $leave['leave_type'];
-                        echo htmlspecialchars($leaveTypeLabels[$type] ?? ucfirst($type)); 
-                      ?>
-                    </div>
-                    <div class="fs-sm text-body-secondary">
-                      Submitted on <?php echo date("M j, Y", strtotime($leave['submitted_date'] ?? $leave['start_date'])); ?>
-                    </div>
-                  </div>
-                </div>
-              </td>
+  <?php if (!empty($pendingRequests)): ?>
+    <?php foreach ($pendingRequests as $leave): ?>
+      <tr class="clickable-row" data-href="review_leave.php?id=<?php echo $leave['id']; ?>">
+        <td>
+          <div class="d-flex flex-column">
+            <strong><?php echo htmlspecialchars($leave['firstname'] . ' ' . $leave['lastname']); ?></strong>
+            <div>
+              <?php 
+                $type = $leave['leave_type'];
+                echo htmlspecialchars($leaveTypeLabels[$type] ?? ucfirst($type)); 
+              ?>
+            </div>
+            <div class="fs-sm text-body-secondary">
+              Submitted on <?php echo date("M j, Y", strtotime($leave['request_timestamp'])); ?>
+            </div>
+          </div>
+        </td>
+        <td>
+          <?php echo date("F j, Y", strtotime($leave['start_date'])); ?>
+        </td>
+        <td>
+          <?php echo date("F j, Y", strtotime($leave['end_date'])); ?>
+        </td>
+        <td>
+          <?php
+            $start = strtotime($leave['start_date']);
+            $end = strtotime($leave['end_date']);
+            echo ($end - $start) / (60 * 60 * 24) + 1;
+          ?> days
+        </td>
+        <td><span class="badge bg-warning">Pending</span></td>
+      </tr>
+    <?php endforeach; ?>
+  <?php else: ?>
+    <tr>
+      <td colspan="5" class="text-center text-muted">No pending requests found.</td>
+    </tr>
+  <?php endif; ?>
+</tbody>
 
-              <!-- Start Date -->
-              <td>
-                <span class="fs-sm text-body-secondary">
-                  <?php echo date("F j, Y", strtotime($leave['start_date'])); ?>
-                </span>
-              </td>
-
-              <!-- End Date -->
-              <td>
-                <span class="fs-sm text-body-secondary">
-                  <?php echo date("F j, Y", strtotime($leave['end_date'])); ?>
-                </span>
-              </td>
-
-              <!-- Duration -->
-              <td>
-                <?php
-                  $start = strtotime($leave['start_date']);
-                  $end = strtotime($leave['end_date']);
-                  $days = ($end - $start) / (60 * 60 * 24) + 1;
-                ?>
-                <span class="badge bg-light text-body-secondary"><?php echo $days; ?> days</span>
-              </td>
-
-              <!-- Status -->
-              <td>
-                <span class="badge bg-warning">Pending</span>
-              </td>
-            </tr>
-          <?php endforeach; ?>
-        <?php else: ?>
-          <tr>
-            <td colspan="5" class="text-center text-muted">No pending requests found.</td>
-          </tr>
-        <?php endif; ?>
-      </tbody>
     </table>
   </div>
 </div>
@@ -444,6 +419,19 @@ if ($row = mysqli_fetch_assoc($queryDenied)) {
     </main>
 
 <!-- End Main -->
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const rows = document.querySelectorAll('.clickable-row');
+    rows.forEach(row => {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => {
+        window.location.href = row.dataset.href;
+      });
+    });
+  });
+</script>
+
 
 
     <!--Footer-->

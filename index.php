@@ -28,12 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Verify password
             if (password_verify($password, $user['password'])) {
                 // Store user data in session
-                $_SESSION['id'] = $user['id'];
+                $_SESSION['user_id'] = $user['id']; // ✅ consistent with dashboard
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['firstname'] = $user['firstname'];
                 $_SESSION['lastname'] = $user['lastname'];
                 $_SESSION['role'] = $user['role'];
                 $_SESSION['profile_picture'] = $user['profile_picture'];
+
 
                 // Redirect based on role
                 switch ($user['role']) {

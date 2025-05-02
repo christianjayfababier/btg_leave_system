@@ -10,7 +10,6 @@ exit;
 
 // Fetch user_id and firstname from session
 $user_id = $_SESSION['user_id'] ?? ""; // Fetch from session
-$firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
 ?>
 
 
@@ -79,53 +78,45 @@ $firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
 
       <!-- Form -->
       <form action="controllers/apply.leave.request.controller.php" method="POST">
-      <div class="mb-4">
-        <label class="form-label" for="leave_type">Leave Type</label>
+        <input type="hidden" name="user_id" value="<?php echo $user_id; ?>" />
+
+        <div class="mb-4">
+          <label class="form-label" for="leave_type">Leave Type</label>
           <select class="form-control" id="leave_type" name="leave_type" required>
             <option value="">Select a leave type</option>
             <option value="sick">Sick Leave</option>
             <option value="vacation">Vacation Leave</option>
             <option value="personal">Personal Leave</option>
           </select>
-      </div>
-
-      <div class="mb-4 d-flex gap-3">
-        <div class="flex-fill">
-          <label class="form-label" for="start_date">Start Date</label>
-          <input class="form-control" id="start_date" type="date" name="start_date" required />
         </div>
-        <div class="flex-fill">
-          <label class="form-label" for="end_date">End Date</label>
-          <input class="form-control" id="end_date" type="date" name="end_date" required />
-        </div>
-      </div>
 
-      <!-- Hidden readonly input for calculated days -->
-      <div id="days_difference_wrapper" class="mb-4" style="display: none;">
-        <label class="form-label" for="days_difference">Days Difference</label>
-        <input 
-          class="form-control" 
-          id="days_difference" 
-          type="text" 
-          readonly 
-          style="height: 45px; overflow: hidden;"
-        />
-      </div>
+        <div class="mb-4 d-flex gap-3">
+          <div class="flex-fill">
+            <label class="form-label" for="start_date">Start Date</label>
+            <input class="form-control" id="start_date" type="date" name="start_date" required />
+          </div>
+          <div class="flex-fill">
+            <label class="form-label" for="end_date">End Date</label>
+            <input class="form-control" id="end_date" type="date" name="end_date" required />
+          </div>
+        </div>
+
+        <div id="days_difference_wrapper" class="mb-4" style="display: none;">
+          <label class="form-label" for="days_difference">Days Difference</label>
+          <input class="form-control" id="days_difference" type="text" readonly />
+        </div>
 
         <div class="mb-4">
           <label class="form-label" for="reason_for_leave">Reason for Leave</label>
           <textarea class="form-control mb-3" id="reason_for_leave" name="reason_for_leave" rows="4" required></textarea>
         </div>
-        
-        <input type="hidden" name="username" value="<?php echo $username; ?>" />
 
-        <button type="submit" class="btn btn-secondary w-100">
-          Submit Leave Request
-        </button>
-        <button type="reset" class="btn btn-link w-100 mt-3">
-          Reset form
-        </button>
+        <!-- Removed broken username input -->
+
+        <button type="submit" class="btn btn-secondary w-100">Submit Leave Request</button>
+        <button type="reset" class="btn btn-link w-100 mt-3">Reset form</button>
       </form>
+
 
     </div>
   </div>
@@ -192,30 +183,34 @@ $firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
 
   // Handle form submission
   form.addEventListener('submit', function (e) {
-    e.preventDefault();
+  e.preventDefault();
 
-    const formData = new FormData(form);
-    fetch(form.action, {
-      method: 'POST',
-      body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.status === 'success') {
-        // Show success modal
-        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-        successModal.show();
-        form.reset(); // Reset the form
-        daysWrapper.style.display = 'none'; // Hide days difference
-      } else {
-        alert(data.message || 'An error occurred while submitting the leave request.');
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      alert('An unexpected error occurred.');
-    });
+  const formData = new FormData(form);
+
+  // Manually append user_id
+  formData.append('user_id', "<?php echo $user_id; ?>");
+
+  fetch(form.action, {
+    method: 'POST',
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'success') {
+      const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+      successModal.show();
+      form.reset();
+      daysWrapper.style.display = 'none';
+    } else {
+      alert(data.message || 'An error occurred while submitting the leave request.');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('An unexpected error occurred.');
   });
+});
+
 
   // Initialize
   setMinDateToday();
