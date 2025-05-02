@@ -14,9 +14,8 @@ $firstname = $_SESSION['firstname'];
 
 $leaveBalance = 0;
 $upcomingLeave = 'None';
-$leaveHistory = [];
 $pendingRequests = [];
-
+$approvedRequests = [];
 $leaveTypeLabels = [
   'sick' => 'Sick Leave',
   'vacation' => 'Vacation Leave',
@@ -54,16 +53,15 @@ if ($stmt = $conn->prepare("
     $stmt->close();
 }
 
-// Get Leave History
+// Get Approved Requests
 if ($stmt = $conn->prepare("
-  SELECT leave_type, start_date, end_date 
+  SELECT leave_type, start_date, end_date, request_timestamp 
   FROM leave_requests 
-  WHERE user_id = ? 
-    AND end_date < ? 
-    AND status = 'approved' 
-  ORDER BY end_date DESC
+  WHERE user_id = ? AND status = 'approved' 
+  ORDER BY start_date DESC
 ")) {
-    $stmt->bind_param("is", $loggedInUserId, $currentDate);
+    $stmt->bind_param("i", $loggedInUserId);
+
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -111,6 +109,46 @@ if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE s
 if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE status = 'denied'")) {
     $deniedCount = $result->fetch_assoc()['total'];
 }
+
+//Approved Requests
+if ($stmt = $conn->prepare("
+  SELECT leave_type, start_date, end_date, request_timestamp 
+  FROM leave_requests 
+  WHERE user_id = ? AND status = 'approved' 
+  ORDER BY start_date DESC
+")) {
+    $stmt->bind_param("i", $loggedInUserId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $leaveHistory[] = $row;
+    }
+    $stmt->close();
+}
+
+if ($stmt = $conn->prepare("
+  SELECT 
+    lr.leave_type, 
+    lr.start_date, 
+    lr.end_date, 
+    lr.request_timestamp,
+    u.firstname, 
+    u.lastname
+  FROM leave_requests lr
+  JOIN user_assignments ua ON lr.user_id = ua.assignee_id
+  JOIN users u ON lr.user_id = u.id
+  WHERE ua.approver_id = ? AND lr.status = 'approved'
+  ORDER BY lr.start_date DESC
+")) {
+    $stmt->bind_param("i", $loggedInUserId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $approvedRequests[] = $row;
+    }
+    $stmt->close();
+}
+
 ?>
 
 
@@ -277,12 +315,12 @@ if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE s
 
 
 
-            <!-- Leave History -->
+            <!-- Approved Requests -->
             <div class="card mb-6 mb-xxl-0">
               <div class="card-header">
                 <div class="row align-items-center">
                   <div class="col">
-                    <h3 class="fs-6 mb-0">Leave History</h3>
+                    <h3 class="fs-6 mb-0">Approved Requests</h3>
                   </div>
                 </div>
               </div>
@@ -298,8 +336,8 @@ if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE s
                     </tr>
                   </thead>
                   <tbody>
-                <?php if (!empty($leaveHistory)): ?>
-                  <?php foreach ($leaveHistory as $leave): ?>
+                  <?php if (!empty($approvedRequests)): ?>
+                    <?php foreach ($approvedRequests as $leave): ?>
                     <tr>
                       <!-- Leave Type -->
                       <td>
@@ -312,7 +350,7 @@ if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE s
                               ?>
                             </div>
                             <div class="fs-sm text-body-secondary">
-                              Applied on <?php echo date("M j, Y", strtotime($leave['applied_date'] ?? $leave['start_date'])); ?>
+                            Submitted on <?php echo date("M j, Y", strtotime($leave['request_timestamp'])); ?>
                             </div>
                           </div>
                         </div>
@@ -339,23 +377,27 @@ if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE s
                           $end = strtotime($leave['end_date']);
                           $days = ($end - $start) / (60 * 60 * 24) + 1;
                         ?>
-                        <span class="badge bg-light text-body-secondary"><?php echo $days; ?> days</span>
+                        <span class="badge bg-light text-body-secondary"><?php echo $days; ?> Day/s</span>
                       </td>
 
+        
                       <!-- Status -->
                       <td>
                         <?php
                           $today = strtotime(date('Y-m-d'));
-                          $status = $end < $today ? 'Completed' : 'Ongoing';
-                          $statusClass = $end < $today ? 'bg-success' : 'bg-warning';
+                          $status = $end < $today ? 'Completed' : 'Upcoming';
+                          $statusClass = $end < $today ? 'bg-success' : 'bg-info';
                         ?>
-                        <span class="badge <?php echo $statusClass; ?>"><?php echo $status; ?></span>
+                        <span class="badge bg-success">Approved</span>
+                        <div class="fs-xs text-body-secondary"><?php echo $status; ?></div>
                       </td>
+
+
                     </tr>
                   <?php endforeach; ?>
                 <?php else: ?>
                   <tr>
-                    <td colspan="5" class="text-center text-muted">No leave history found.</td>
+                  <td colspan="5" class="text-center text-muted">No approved leave requests found.</td>
                   </tr>
                 <?php endif; ?>
               </tbody>
@@ -368,7 +410,7 @@ if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE s
                         <div class="col-12 col-xxl-4">
 
 
-                        <!-- Leave History Old -->
+                       
 
 
             <!-- Activity -->
