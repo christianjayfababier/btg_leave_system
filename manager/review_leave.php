@@ -150,7 +150,7 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
           <?php echo $_SESSION['flash_success']; unset($_SESSION['flash_success']); ?>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-success" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-success" data-bs-dismiss="modal" id="closeSuccessBtn">Close</button>
         </div>
       </div>
     </div>
@@ -191,6 +191,50 @@ if (isset($_GET['id']) && is_numeric($_GET['id'])) {
       new bootstrap.Modal(errorModal).show();
     }
   });
+
+
+  
+  document.addEventListener('DOMContentLoaded', function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    const result = urlParams.get('result');
+
+    if (result === 'success') {
+      const modal = new bootstrap.Modal(document.getElementById('successModal'));
+      modal.show();
+    } else if (result === 'error') {
+      const modal = new bootstrap.Modal(document.getElementById('errorModal'));
+      modal.show();
+    }
+  });
+
+  if (window.history.replaceState) {
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/(&?result=(success|error))/, ''));
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const successModalElement = document.getElementById('successModal');
+    const errorModalElement = document.getElementById('errorModal');
+
+    if (successModalElement) {
+      const successModal = new bootstrap.Modal(successModalElement);
+      successModal.show();
+    }
+
+    if (errorModalElement) {
+      const errorModal = new bootstrap.Modal(errorModalElement);
+      errorModal.show();
+    }
+
+    const closeSuccessBtn = document.getElementById('closeSuccessBtn');
+    if (closeSuccessBtn) {
+      closeSuccessBtn.addEventListener('click', function () {
+        setTimeout(function () {
+          window.location.href = 'pending_leave_application_list.php';
+        }, 1000); // 1 seconds
+      });
+    }
+  });
+
 </script>
 
 

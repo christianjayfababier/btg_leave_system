@@ -15,15 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = isset($_POST['action']) ? strtolower($_POST['action']) : '';
 
     if ($requestId <= 0 || !in_array($action, ['approve', 'reject'])) {
-        // Invalid input
         $_SESSION['flash_error'] = 'Invalid leave request or action.';
-        header('Location: ../index.php');
+        header("Location: ../review_leave.php?id={$requestId}");
         exit();
     }
 
-    // Check if manager is allowed to approve/reject this request
+    // Verify manager's authorization
     $stmt = $conn->prepare("
-        SELECT lr.id 
+        SELECT lr.user_id 
         FROM leave_requests lr
         JOIN user_assignments ua ON lr.user_id = ua.assignee_id
         WHERE lr.id = ? AND ua.approver_id = ?
@@ -35,38 +34,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($stmt->num_rows === 0) {
         $stmt->close();
         $_SESSION['flash_error'] = 'You are not authorized to modify this leave request.';
-        header('Location: ../index.php');
+        header("Location: ../review_leave.php?id={$requestId}");
         exit();
     }
+
+    $stmt->bind_result($userId);
+    $stmt->fetch();
     $stmt->close();
 
-    // Update leave request status
+    // Update leave status
     $newStatus = ($action === 'approve') ? 'approved' : 'denied';
-
-    $sql = "UPDATE leave_requests SET status = ?, decision_timestamp = NOW() WHERE id = ?";
-    $stmt = $conn->prepare($sql);
-
+    $stmt = $conn->prepare("UPDATE leave_requests SET status = ?, decision_timestamp = NOW() WHERE id = ?");
+    
     if (!$stmt) {
-        // Log or display the error in dev mode
         $_SESSION['flash_error'] = 'Database error: ' . $conn->error;
-        header('Location: ../index.php');
+        header("Location: ../review_leave.php?id={$requestId}");
         exit();
     }
 
     $stmt->bind_param("si", $newStatus, $requestId);
 
-
     if ($stmt->execute()) {
-        $_SESSION['flash_success'] = "Leave request has been {$newStatus}.";
+        $actionMessage = $newStatus === 'approved' ? 'approved' : 'rejected';
+        $_SESSION['flash_success'] = "Leave request has been {$actionMessage}.";
     } else {
         $_SESSION['flash_error'] = 'Failed to update leave request. Please try again.';
     }
 
     $stmt->close();
-    header('Location: ../index.php');
+
+    // Final redirect back to review page
+    header("Location: ../review_leave.php?id={$requestId}");
     exit();
+
 } else {
-    // If accessed via GET or other methods
     header('Location: ../index.php');
     exit();
 }
