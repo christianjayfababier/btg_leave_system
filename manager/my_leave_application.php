@@ -3,62 +3,14 @@ session_start();
 require_once '../config.php';
 
 //Ensure the user is logged in and is an staff
-if (!isset($_SESSION['role']) && $_SESSION['role'] !='manager') {
-header("Location: ../login.php");
-exit;
+if (!isset($_SESSION['role']) || $_SESSION['role'] != 'manager') {
+  header("Location: ../login.php");
+  exit;
 }
 
-// Initialize variables
-$firstname = $_SESSION['firstname'];
-$leaveBalance = 0;
-$upcomingLeave = 'None';
-$leaveHistory = [];
-
-
-
-// Get Leave Balance
-if ($stmt = $conn->prepare("SELECT leave_balance FROM users WHERE firstname = ?")) {
-    $stmt->bind_param("s", $firstname);
-    $stmt->execute();
-    $stmt->bind_result($leaveBalance);
-    $stmt->fetch();
-    $stmt->close();
-}
-
-// Get Upcoming Leave
-$currentDate = date('Y-m-d'); // Set current date dynamically
-if ($stmt = $conn->prepare("
-    SELECT start_date, end_date 
-    FROM leave_requests 
-    WHERE firstname = ? 
-      AND start_date >= ? 
-      AND status = 'approved' 
-    ORDER BY start_date ASC 
-    LIMIT 1
-")) {
-    $stmt->bind_param("ss", $firstname, $currentDate);
-    $stmt->execute();
-    $stmt->bind_result($startDate, $endDate);
-    if ($stmt->fetch()) {
-        // Debugging: Check if the query returns data
-        error_log("Upcoming leave found: Start - $startDate, End - $endDate");
-
-        // Format the date range
-        if ($startDate === $endDate) {
-            $upcomingLeave = date("F j, Y", strtotime($startDate));
-        } else {
-            $upcomingLeave = date("F j", strtotime($startDate)) . "–" . date("j, Y", strtotime($endDate));
-        }
-    } else {
-        // Debugging: No results found
-        error_log("No upcoming leave found for user firstname: $firstname");
-        $upcomingLeave = 'None';
-    }
-    $stmt->close();
-} else {
-    // Debugging: SQL preparation error
-    error_log("SQL query preparation failed: " . $conn->error);
-}
+// Fetch user_id and firstname from session
+$user_id = $_SESSION['user_id'] ?? ""; // Fetch from session
+$firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
 ?>
  
  <!-- Head -->
@@ -100,48 +52,6 @@ if ($stmt = $conn->prepare("
     <!-- Divider -->
     <hr class="my-8" />
 
-    <!-- Stats -->
-    <div class="row mb-8">
-          <div class="col-12 col-md-6 col-xxl-6 mb-4 mb-xxl-0">
-            <div class="card bg-body-tertiary border-transparent">
-              <div class="card-body">
-                <div class="row align-items-center">
-                  <div class="col">
-                    <!-- Heading -->
-                    <h4 class="fs-sm fw-normal text-body-secondary mb-1">Leave Balance</h4>         
-                  </div>
-                  <div class="col-auto">
-                    <!-- Leave Balance -->
-                    <div>
-                    <div class="fs-4 fw-semibold"><?php echo $leaveBalance; ?></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="col-12 col-md-6 col-xxl-6 mb-4 mb-xxl-0">
-            <div class="card bg-body-tertiary border-transparent">
-              <div class="card-body">
-                <div class="row align-items-center">
-                  <div class="col">
-                    <!-- Heading -->
-                    <h4 class="fs-sm fw-normal text-body-secondary mb-1">Upcoming Leave</h4>
-                  </div>
-                  <div class="col-auto">
-                    <!-- Upcoming Leave -->
-                    <div>
-                    <div class="fs-4 fw-semibold"><?php echo $upcomingLeave; ?></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-         
-    
-        </div>
-
     <div class="row">
       <div class="col-12 col-xxl-12">
         <!-- Leave Applications -->
@@ -176,7 +86,9 @@ if ($stmt = $conn->prepare("
                 $connection = mysqli_connect("localhost", "root", "", "btg_leave_system");
 
                 // Query the leave_requests table
-                $query = "SELECT * FROM leave_requests";
+                $userId = $_SESSION['user_id']; // Make sure this is set during login
+                $userId = intval($_SESSION['user_id']); // Ensure it's an integer
+                $query = "SELECT * FROM leave_requests WHERE user_id = $userId";
                 $result = mysqli_query($connection, $query);
 
                 // Function to format leave types
