@@ -2,38 +2,33 @@
 session_start();
 require_once '../config.php';
 
-//Ensure the user is logged in and is an staff
-if (!isset($_SESSION['role']) && $_SESSION['role'] !='staff') {
-header("Location: ../login.php");
-exit;
+// Ensure the user is logged in and is staff
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'staff') {
+    header("Location: ../login.php");
+    exit;
 }
 
-// Fetch user_id and firstname from session
-$user_id = $_SESSION['user_id'] ?? ""; // Fetch from session
-$firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
+$user_id = $_SESSION['user_id'];
+$firstname = $_SESSION['firstname'];
 ?>
- 
- <!-- Head -->
- <?php include 'includes/head.php';?>
+
+<!-- Head -->
+<?php include 'includes/head.php';?>
 <!-- End Head -->
 
- <!-- Toolbar -->
- <?php include 'includes/toolbar.php';?>
-    <!-- End Toolbar -->
+<!-- Toolbar -->
+<?php include 'includes/toolbar.php';?>
+<!-- End Toolbar -->
 
 <!-- Sidebar -->
 <?php include 'includes/sidebar.php';?>
 <!-- End Sidebar -->
 
-
-<!-- topbar -->
+<!-- Topbar -->
 <?php include 'includes/topbar.php';?>
 <!-- End Topbar -->
 
-
-
 <main class="main px-lg-6">
-  <!-- Content -->
   <div class="container-lg">
     <!-- Page content -->
     <div class="row align-items-center">
@@ -44,7 +39,7 @@ $firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
         Your Location –&nbsp;<span>8:00 PM</span>
       </div>
       <div class="col-12 col-md order-md-0 text-center text-md-start">
-        <h1>Hello, <?php echo $_SESSION['firstname']; ?></h1>
+        <h1>Hello, <?php echo htmlspecialchars($firstname); ?></h1>
         <p class="fs-lg text-body-secondary mb-0">Here's a summary of your leave applications.</p>
       </div>
     </div>
@@ -82,69 +77,69 @@ $firstname = $_SESSION['firstname'] ?? ""; // Fetch from session
               </thead>
               <tbody>
                 <?php
-                // Database connection
-                $connection = mysqli_connect("localhost", "root", "", "btg_leave_system");
+                // Use connection from config.php
+                if (!$conn) {
+                    die("<tr><td colspan='5' class='text-danger'>Database connection failed.</td></tr>");
+                }
 
-                // Query the leave_requests table
-                $query = "SELECT * FROM leave_requests";
-                $result = mysqli_query($connection, $query);
-
-                // Function to format leave types
+                // Leave type formatter
                 function formatLeaveType($type) {
-                  $leaveTypes = [
-                    'sick' => 'Sick Leave',
-                    'vacation' => 'Vacation Leave',
-                    'personal' => 'Personal Leave'
-                  ];
-                  return $leaveTypes[$type] ?? ucfirst($type) . ' Leave';
+                    $leaveTypes = [
+                        'sick' => 'Sick Leave',
+                        'vacation' => 'Vacation Leave',
+                        'personal' => 'Personal Leave'
+                    ];
+                    return $leaveTypes[$type] ?? ucfirst($type) . ' Leave';
                 }
 
-                // Loop through the results
-                while ($row = mysqli_fetch_assoc($result)) {
-                  $formattedLeaveType = formatLeaveType($row['leave_type']);
-                  $status_badge = "<span class='badge bg-light text-body-secondary'>Pending</span>"; // Default status
+                // Get leave requests for current user
+                $stmt = $conn->prepare("SELECT * FROM leave_requests WHERE user_id = ? ORDER BY request_timestamp DESC");
+                $stmt->bind_param("i", $user_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
 
-                  // Example status mapping (modify this based on your actual status logic)
-                  if (isset($row['status'])) {
-                    if ($row['status'] == 'approved') {
-                      $status_badge = "<span class='badge bg-success-subtle text-success'>Approved</span>";
-                    } elseif ($row['status'] == 'rejected') {
-                      $status_badge = "<span class='badge bg-danger-subtle text-danger'>Rejected</span>";
+                if ($result->num_rows > 0) {
+                    while ($row = $result->fetch_assoc()) {
+                        $formattedLeaveType = formatLeaveType($row['leave_type']);
+                        $status_badge = "<span class='badge bg-light text-body-secondary'>Pending</span>";
+
+                        if ($row['status'] === 'approved') {
+                            $status_badge = "<span class='badge bg-success-subtle text-success'>Approved</span>";
+                        } elseif ($row['status'] === 'denied') {
+                            $status_badge = "<span class='badge bg-danger-subtle text-danger'>Denied</span>";
+                        }
+
+                        echo "
+                        <tr onclick=\"window.location.href='leave_request_detail.php?id={$row['id']}'\" role='link' tabindex='0'>
+                          <td>
+                            <div class='d-flex align-items-center'>
+                              <div class='ms-4'>
+                                <div>{$formattedLeaveType}</div>
+                                <div class='fs-sm text-body-secondary'>Requested on " . date("M j, Y", strtotime($row['request_timestamp'])) . "</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>" . date("F j, Y", strtotime($row['start_date'])) . "</td>
+                          <td>" . date("F j, Y", strtotime($row['end_date'])) . "</td>
+                          <td>" . htmlspecialchars($row['reason_for_leave']) . "</td>
+                          <td>$status_badge</td>
+                        </tr>";
                     }
-                  }
-
-                  echo "
-                  <tr onclick=\"window.location.href='leave_request_detail.php?id={$row['id']}'\" role='link' tabindex='0'>
-                    <td>
-                      <div class='d-flex align-items-center'>
-                        <div class='ms-4'>
-                          <div>{$formattedLeaveType}</div>
-                          <div class='fs-sm text-body-secondary'>Requested on {$row['request_timestamp']}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>{$row['start_date']}</td>
-                    <td>{$row['end_date']}</td>
-                    <td>{$row['reason_for_leave']}</td>
-                    <td>$status_badge</td>
-                  </tr>";
+                } else {
+                    echo "<tr><td colspan='5' class='text-center text-muted'>No leave requests found.</td></tr>";
                 }
 
-                // Close the connection
-                mysqli_close($connection);
+                $stmt->close();
                 ?>
               </tbody>
             </table>
           </div>
         </div>
       </div>
-    
     </div>
   </div>
 </main>
-<!-- End Main -->
 
-
-    <!--Footer-->
-    <?php include 'includes/footer.php';?>
-    <!--End Footer-->
+<!-- Footer -->
+<?php include 'includes/footer.php';?>
+<!-- End Footer -->

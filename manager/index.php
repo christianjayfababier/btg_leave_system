@@ -100,15 +100,48 @@ if ($stmt = $conn->prepare("
 // Summary Counts (overall)
 $pendingCount = $approvedCount = $deniedCount = 0;
 
-if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE status = 'pending'")) {
-    $pendingCount = $result->fetch_assoc()['total'];
+// Pending
+if ($stmt = $conn->prepare("
+    SELECT COUNT(*) AS total
+    FROM leave_requests lr
+    JOIN user_assignments ua ON lr.user_id = ua.assignee_id
+    WHERE ua.approver_id = ? AND lr.status = 'pending'
+")) {
+    $stmt->bind_param("i", $loggedInUserId);
+    $stmt->execute();
+    $stmt->bind_result($pendingCount);
+    $stmt->fetch();
+    $stmt->close();
 }
-if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE status = 'approved'")) {
-    $approvedCount = $result->fetch_assoc()['total'];
+
+// Approved
+if ($stmt = $conn->prepare("
+    SELECT COUNT(*) AS total
+    FROM leave_requests lr
+    JOIN user_assignments ua ON lr.user_id = ua.assignee_id
+    WHERE ua.approver_id = ? AND lr.status = 'approved'
+")) {
+    $stmt->bind_param("i", $loggedInUserId);
+    $stmt->execute();
+    $stmt->bind_result($approvedCount);
+    $stmt->fetch();
+    $stmt->close();
 }
-if ($result = $conn->query("SELECT COUNT(*) AS total FROM leave_requests WHERE status = 'denied'")) {
-    $deniedCount = $result->fetch_assoc()['total'];
+
+// Denied
+if ($stmt = $conn->prepare("
+    SELECT COUNT(*) AS total
+    FROM leave_requests lr
+    JOIN user_assignments ua ON lr.user_id = ua.assignee_id
+    WHERE ua.approver_id = ? AND lr.status = 'denied'
+")) {
+    $stmt->bind_param("i", $loggedInUserId);
+    $stmt->execute();
+    $stmt->bind_result($deniedCount);
+    $stmt->fetch();
+    $stmt->close();
 }
+
 
 //Approved Requests
 if ($stmt = $conn->prepare("
@@ -160,13 +193,16 @@ if ($stmt = $conn->prepare("
     lr.decision_timestamp,
     lr.status,
     u.firstname AS employee_name,
-    (SELECT firstname FROM users WHERE id = ua.approver_id) AS manager_name
+    m.firstname AS manager_name
   FROM leave_requests lr
   JOIN users u ON lr.user_id = u.id
   JOIN user_assignments ua ON lr.user_id = ua.assignee_id
+  JOIN users m ON ua.approver_id = m.id
+  WHERE ua.approver_id = ?
   ORDER BY GREATEST(COALESCE(lr.decision_timestamp, '0000-00-00'), lr.request_timestamp) DESC
   LIMIT 10
 ")) {
+    $stmt->bind_param("i", $loggedInUserId);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -174,6 +210,7 @@ if ($stmt = $conn->prepare("
     }
     $stmt->close();
 }
+
 
 
 $deniedRequests = [];

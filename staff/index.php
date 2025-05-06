@@ -12,6 +12,7 @@ $pageTitle = "Staff Dashboard";
 require_once '../config.php';
 
 // Initialize variables
+$loggedInUserId = $_SESSION['user_id'];
 $firstname = $_SESSION['firstname'];
 $leaveBalance = 0;
 $upcomingLeave = 'None';
@@ -31,8 +32,8 @@ function formatLeaveType($type, $map) {
 
 
 // Get Leave Balance
-if ($stmt = $conn->prepare("SELECT leave_balance FROM users WHERE firstname = ?")) {
-    $stmt->bind_param("s", $firstname);
+if ($stmt = $conn->prepare("SELECT leave_balance FROM users WHERE id = ?")) {
+  $stmt->bind_param("i", $loggedInUserId);
     $stmt->execute();
     $stmt->bind_result($leaveBalance);
     $stmt->fetch();
@@ -44,13 +45,13 @@ $currentDate = date('Y-m-d'); // Set current date dynamically
 if ($stmt = $conn->prepare("
     SELECT start_date, end_date 
     FROM leave_requests 
-    WHERE firstname = ? 
+    WHERE user_id = ? 
       AND start_date >= ? 
       AND status = 'approved' 
     ORDER BY start_date ASC 
     LIMIT 1
 ")) {
-    $stmt->bind_param("ss", $firstname, $currentDate);
+    $stmt->bind_param("is", $loggedInUserId, $currentDate);
     $stmt->execute();
     $stmt->bind_result($startDate, $endDate);
     if ($stmt->fetch()) {
@@ -82,12 +83,12 @@ $currentDate = date('Y-m-d'); // Current date
 if ($stmt = $conn->prepare("
     SELECT leave_type, start_date, end_date 
     FROM leave_requests 
-    WHERE firstname = ? 
+    WHERE user_id = ? 
       AND end_date < ? 
       AND status = 'approved' 
     ORDER BY end_date DESC
 ")) {
-    $stmt->bind_param("ss", $firstname, $currentDate);
+    $stmt->bind_param("is", $loggedInUserId, $currentDate);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -104,13 +105,13 @@ error_log(print_r($leaveHistory, true));
 $pendingRequests = [];
 
 if ($stmt = $conn->prepare("
-    SELECT leave_type, start_date, end_date 
+    SELECT leave_type, start_date, end_date, request_timestamp 
     FROM leave_requests 
-    WHERE firstname = ? 
+    WHERE user_id = ? 
       AND status = 'pending' 
     ORDER BY start_date ASC
 ")) {
-    $stmt->bind_param("s", $firstname);
+    $stmt->bind_param("i", $loggedInUserId);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -122,21 +123,21 @@ if ($stmt = $conn->prepare("
 
 $recentActivities = [];
 if ($stmt = $conn->prepare("
-  SELECT 
-    lr.id,
-    lr.leave_type,
-    lr.request_timestamp,
-    lr.decision_timestamp,
-    lr.status,
-    u.firstname AS employee_name,
-    m.firstname AS manager_name
-  FROM leave_requests lr
-  JOIN users u ON lr.user_id = u.id
-  JOIN user_assignments ua ON lr.user_id = ua.assignee_id
-  JOIN users m ON ua.approver_id = m.id
-  WHERE ua.approver_id = ?
-  ORDER BY GREATEST(COALESCE(lr.decision_timestamp, '0000-00-00'), lr.request_timestamp) DESC
-  LIMIT 10
+    SELECT 
+      lr.id,
+      lr.leave_type,
+      lr.request_timestamp,
+      lr.decision_timestamp,
+      lr.status,
+      u.firstname AS employee_name,
+      m.firstname AS manager_name
+    FROM leave_requests lr
+    JOIN users u ON lr.user_id = u.id
+    JOIN user_assignments ua ON lr.user_id = ua.assignee_id
+    JOIN users m ON ua.approver_id = m.id
+    WHERE lr.user_id = ?
+    ORDER BY GREATEST(COALESCE(lr.decision_timestamp, '0000-00-00'), lr.request_timestamp) DESC
+    LIMIT 10
 ")) {
     $stmt->bind_param("i", $loggedInUserId);
     $stmt->execute();
