@@ -120,6 +120,35 @@ if ($stmt = $conn->prepare("
 }
 
 
+$recentActivities = [];
+if ($stmt = $conn->prepare("
+  SELECT 
+    lr.id,
+    lr.leave_type,
+    lr.request_timestamp,
+    lr.decision_timestamp,
+    lr.status,
+    u.firstname AS employee_name,
+    m.firstname AS manager_name
+  FROM leave_requests lr
+  JOIN users u ON lr.user_id = u.id
+  JOIN user_assignments ua ON lr.user_id = ua.assignee_id
+  JOIN users m ON ua.approver_id = m.id
+  WHERE ua.approver_id = ?
+  ORDER BY GREATEST(COALESCE(lr.decision_timestamp, '0000-00-00'), lr.request_timestamp) DESC
+  LIMIT 10
+")) {
+    $stmt->bind_param("i", $loggedInUserId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $recentActivities[] = $row;
+    }
+    $stmt->close();
+}
+
+
+
 
 ?>
 
@@ -390,44 +419,39 @@ if ($stmt = $conn->prepare("
                         <!-- Leave History Old -->
 
 
-            <!-- Activity -->
-            <div class="card">
+           <!-- Recennt Activity -->
+           <div class="card">
               <div class="card-header">
                 <h3 class="fs-6 mb-0">Recent activity</h3>
               </div>
               <div class="card-body">
-                <ul class="activity">
-                  <li data-icon="thumb_up">
-                    <div>
-                      <h6 class="fs-base mb-1">You <span class="fs-sm fw-normal text-body-secondary ms-1">1hr ago</span></h6>
-                      <p class="mb-0">Liked a post by @john_doe</p>
+              <ul class="activity">
+              <?php foreach ($recentActivities as $activity): ?>
+                <li data-icon="<?php echo $activity['status'] === 'pending' ? 'description' : ($activity['status'] === 'approved' ? 'check_circle' : 'cancel'); ?>">
+                  <div>
+                    <h6 class="mb-1" style="font-size: 0.87em;">
+                      <?php if ($activity['status'] === 'pending'): ?>
+                        A new leave request has been submitted by <?php echo htmlspecialchars($activity['employee_name']); ?>.
+                      <?php elseif ($activity['status'] === 'approved'): ?>
+                        The leave request has been approved by <?php echo htmlspecialchars($activity['manager_name']); ?>.
+                      <?php elseif ($activity['status'] === 'denied'): ?>
+                        The leave request has been denied by <?php echo htmlspecialchars($activity['manager_name']); ?>.
+                      <?php endif; ?>
+                    </h6>
+                    <div class="text-body-secondary" style="font-size: 0.87em;">
+                      <?php
+                        $timestamp = $activity['status'] === 'pending' 
+                          ? $activity['request_timestamp'] 
+                          : $activity['decision_timestamp'];
+                        echo date("F j, Y, g:i A", strtotime($timestamp));
+                      ?>
                     </div>
-                  </li>
-                  <li data-icon="chat_bubble">
-                    <div>
-                      <h6 class="fs-base mb-1">Jessica Miller <span class="fs-sm fw-normal text-body-secondary ms-1">3hr ago</span></h6>
-                      <p class="mb-0">Commented on a photo</p>
-                    </div>
-                  </li>
-                  <li data-icon="share">
-                    <div>
-                      <h6 class="fs-base mb-1">Emily Thompson <span class="fs-sm fw-normal text-body-secondary ms-1">3hr ago</span></h6>
-                      <p class="mb-0">Shared an article: "Top 10 Travel Destinations"</p>
-                    </div>
-                  </li>
-                  <li data-icon="person_add">
-                    <div>
-                      <h6 class="fs-base mb-1">You <span class="fs-sm fw-normal text-body-secondary ms-1">1 day ago</span></h6>
-                      <p class="mb-0">Started following @jane_smith</p>
-                    </div>
-                  </li>
-                  <li data-icon="account_circle">
-                    <div>
-                      <h6 class="fs-base mb-1">Olivia Davis <span class="fs-sm fw-normal text-body-secondary ms-1">2 days ago</span></h6>
-                      <p class="mb-0">Updated profile picture</p>
-                    </div>
-                  </li>
-                </ul>
+                  </div>
+                </li>
+              <?php endforeach; ?>
+            </ul>
+
+
               </div>
             </div>
 
