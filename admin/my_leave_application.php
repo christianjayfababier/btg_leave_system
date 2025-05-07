@@ -1,7 +1,7 @@
 <?php
 session_start();
 
-if (!isset($_SESSION["role"]) || $_SESSION["role"] !== 'staff') {
+if (!isset($_SESSION["role"]) || $_SESSION["role"] !== 'admin') {
     header('Location: ../index.php');
     exit();
 }
@@ -84,11 +84,11 @@ if ($stmt = $conn->prepare("
     SELECT leave_type, start_date, end_date 
     FROM leave_requests 
     WHERE user_id = ? 
+      AND end_date < ? 
       AND status = 'approved' 
-      AND end_date < CURDATE() 
     ORDER BY end_date DESC
 ")) {
-    $stmt->bind_param("i", $loggedInUserId);
+    $stmt->bind_param("is", $loggedInUserId, $currentDate);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
@@ -166,8 +166,6 @@ if ($stmt = $conn->prepare("
     }
     $stmt->close();
 }
-
-
 
 
 ?>
@@ -343,6 +341,7 @@ if ($stmt = $conn->prepare("
   </div>
 </div>
 
+
 <!-- Approved Leave Requests -->
 <div class="card mb-6">
   <div class="card-header">
@@ -508,7 +507,7 @@ if ($stmt = $conn->prepare("
                         <div class="col-12 col-xxl-4">
 
 
-                        <!-- Leave History Old -->
+                       
 
 
            <!-- Recennt Activity -->

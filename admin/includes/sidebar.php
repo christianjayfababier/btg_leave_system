@@ -153,13 +153,21 @@
                 <a
                   class="nav-link "
                   href="#"
-                  data-bs-target="#projects"
-                  role="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#pending_leave_applications"
+              
                   aria-expanded="false"
-                  aria-controls="projects"
+                  aria-controls="pending_leave_applications"
                 >
-                  <span class="material-symbols-outlined me-3">list_alt</span> Approval Request
-                </a>     
+                <span class="material-symbols-outlined me-3">description</span> Pending Leave Applications
+                </a>
+                <div class="collapse " id="pending_leave_applications">
+                  <nav class="nav nav-pills">
+                    <a class="nav-link " href="pending_leave_application_list.php">Pending Leave Application List</a>
+                    <a class="nav-link " href="approved_list.php">Approved List</a>
+                    <a class="nav-link " href="denied_list.php">Denied List </a>
+                  </nav>
+                </div>
               </div>
 
 
