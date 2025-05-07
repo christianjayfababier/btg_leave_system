@@ -148,7 +148,24 @@ if ($stmt = $conn->prepare("
     $stmt->close();
 }
 
+$approvedRequests = [];
 
+if ($stmt = $conn->prepare("
+    SELECT leave_type, start_date, end_date, request_timestamp 
+    FROM leave_requests 
+    WHERE user_id = ? 
+      AND status = 'approved' 
+      AND start_date >= ? 
+    ORDER BY start_date ASC
+")) {
+    $stmt->bind_param("is", $loggedInUserId, $currentDate);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $approvedRequests[] = $row;
+    }
+    $stmt->close();
+}
 
 
 ?>
@@ -325,6 +342,79 @@ if ($stmt = $conn->prepare("
 </div>
 
 
+<!-- Approved Leave Requests -->
+<div class="card mb-6">
+  <div class="card-header">
+    <div class="row align-items-center">
+      <div class="col">
+        <h3 class="fs-6 mb-0">Approved Leave Requests</h3>
+      </div>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="fs-sm">Leave Type</th>
+          <th class="fs-sm">Start Date</th>
+          <th class="fs-sm">End Date</th>
+          <th class="fs-sm">Duration</th>
+          <th class="fs-sm">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php if (!empty($approvedRequests)): ?>
+          <?php foreach ($approvedRequests as $leave): ?>
+            <tr>
+              <td>
+                <div class="d-flex align-items-center">
+                  <div class="ms-3">
+                    <div>
+                      <?php 
+                        $type = $leave['leave_type'];
+                        echo htmlspecialchars($leaveTypeLabels[$type] ?? ucfirst($type)); 
+                      ?>
+                    </div>
+                    <div class="fs-sm text-body-secondary">
+                      Submitted on <?php echo date("M j, Y", strtotime($leave['request_timestamp'])); ?>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="fs-sm text-body-secondary">
+                  <?php echo date("F j, Y", strtotime($leave['start_date'])); ?>
+                </span>
+              </td>
+              <td>
+                <span class="fs-sm text-body-secondary">
+                  <?php echo date("F j, Y", strtotime($leave['end_date'])); ?>
+                </span>
+              </td>
+              <td>
+                <?php
+                  $start = strtotime($leave['start_date']);
+                  $end = strtotime($leave['end_date']);
+                  $days = ($end - $start) / (60 * 60 * 24) + 1;
+                ?>
+                <span class="badge bg-light text-body-secondary"><?php echo $days; ?> days</span>
+              </td>
+              <td>
+                <span class="badge bg-success">Approved</span>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <tr>
+            <td colspan="5" class="text-center text-muted">No approved requests found.</td>
+          </tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
 
             <!-- Leave History -->
             <div class="card mb-6 mb-xxl-0">
@@ -395,8 +485,8 @@ if ($stmt = $conn->prepare("
                       <td>
                         <?php
                           $today = strtotime(date('Y-m-d'));
-                          $status = $end < $today ? 'Completed' : 'Ongoing';
-                          $statusClass = $end < $today ? 'bg-success' : 'bg-warning';
+                          $status = 'Completed';
+                          $statusClass = 'bg-success';
                         ?>
                         <span class="badge <?php echo $statusClass; ?>"><?php echo $status; ?></span>
                       </td>
@@ -417,7 +507,7 @@ if ($stmt = $conn->prepare("
                         <div class="col-12 col-xxl-4">
 
 
-                        <!-- Leave History Old -->
+                       
 
 
            <!-- Recennt Activity -->
