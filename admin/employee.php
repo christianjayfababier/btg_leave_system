@@ -7,98 +7,101 @@ if (!isset($_SESSION["role"], $_SESSION["user_id"], $_SESSION["firstname"]) || $
 }
 
 require_once '../config.php';
-
-$pageTitle = "Manager Dashboard";
-$loggedInUserId = $_SESSION['user_id'];
-$firstname = $_SESSION['firstname'];
-
 ?>
 
 <!-- Head -->
- <?php include 'includes/head.php';?>
+<?php include 'includes/head.php'; ?>
 <!-- End Head -->
 
- <!-- Toolbar -->
- <?php include 'includes/toolbar.php';?>
-    <!-- End Toolbar -->
+<!-- Toolbar -->
+<?php include 'includes/toolbar.php'; ?>
+<!-- End Toolbar -->
 
 <!-- Sidebar -->
-<?php include 'includes/sidebar.php';?>
+<?php include 'includes/sidebar.php'; ?>
 <!-- End Sidebar -->
 
-
-<!-- topbar -->
-<?php include 'includes/topbar.php';?>
+<!-- Topbar -->
+<?php include 'includes/topbar.php'; ?>
 <!-- End Topbar -->
-
-
 
 <!-- Main -->
 <main class="main px-lg-6">
   <div class="container-lg">
-    
-    <!-- Page Title -->
-    <div class="row align-items-center mb-4">
+
+    <!-- Page header -->
+    <div class="row align-items-center mb-7">
+      <div class="col-auto">
+        <div class="avatar avatar-xl rounded text-primary">
+          <i class="fs-2" data-duoicon="user"></i>
+        </div>
+      </div>
       <div class="col">
-        <h1 class="mb-0">All Users</h1>
-        <p class="fs-lg text-body-secondary">List of registered users in the system</p>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a class="text-body-secondary" href="#">Users</a></li>
+            <li class="breadcrumb-item active" aria-current="page">All Users</li>
+          </ol>
+        </nav>
+        <h1 class="fs-4 mb-0">User Management</h1>
+      </div>
+      <div class="col-12 col-sm-auto mt-4 mt-sm-0">
+        <a class="btn btn-secondary d-block" href="add_user.php">
+          <span class="material-symbols-outlined me-1">add</span> New User
+        </a>
       </div>
     </div>
 
-    <!-- Divider -->
-    <hr class="my-4" />
+    <!-- Table -->
+    <div class="table-responsive mb-7">
+      <table class="table table-hover table-select table-round align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Leave Balance</th>
+            <th style="width: 0px"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php
+          $query = "SELECT id, firstname, lastname, username, email, role, leave_balance FROM users";
+          $result = mysqli_query($conn, $query);
 
-    <!-- All Users Table -->
-    <div class="card mb-6">
-      <div class="card-header">
-        <div class="row align-items-center">
-          <div class="col">
-            <h3 class="fs-6 mb-0">Users</h3>
-          </div>
-        </div>
-      </div>
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead>
-            <tr>
-              <th class="fs-sm">Name</th>
-              <th class="fs-sm">Email</th>
-              <th class="fs-sm">Role</th>
-              <th class="fs-sm">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <?php
-            include 'includes/db.php'; // Make sure this connects to your database
-            $query = "SELECT id, firstname, lastname, email, role, status FROM users";
-            $result = mysqli_query($conn, $query);
-
-            if ($result && mysqli_num_rows($result) > 0):
-              while ($user = mysqli_fetch_assoc($result)):
-            ?>
-                <tr class="clickable-row" data-href="view_user.php?id=<?php echo $user['id']; ?>">
-                  <td>
-                    <strong><?php echo htmlspecialchars($user['firstname'] . ' ' . $user['lastname']); ?></strong>
-                  </td>
-                  <td><?php echo htmlspecialchars($user['email']); ?></td>
-                  <td><?php echo ucfirst($user['role']); ?></td>
-                  <td>
-                    <span class="badge <?php echo $user['status'] === 'active' ? 'bg-success' : 'bg-secondary'; ?>">
-                      <?php echo ucfirst($user['status']); ?>
-                    </span>
-                  </td>
-                </tr>
-            <?php
-              endwhile;
-            else:
-            ?>
-              <tr>
-                <td colspan="4" class="text-center text-muted">No users found.</td>
+          if ($result && mysqli_num_rows($result) > 0):
+            while ($user = mysqli_fetch_assoc($result)):
+              ?>
+              <tr onclick="window.location.href='edit_user.php?id=<?php echo $user['id']; ?>'" role="link" tabindex="0">
+                <td>
+                  <div class="d-flex align-items-center">
+                    <div class="avatar avatar-sm bg-primary text-white me-3">
+                      <?php echo strtoupper(substr($user['firstname'], 0, 1) . substr($user['lastname'], 0, 1)); ?>
+                    </div>
+                    <div>
+                      <div><?php echo htmlspecialchars($user['firstname'] . ' ' . $user['lastname']); ?></div>
+                    </div>
+                  </div>
+                </td>
+                <td><?php echo htmlspecialchars($user['username']); ?></td>
+                <td><?php echo ucfirst($user['role']); ?></td>
+                <td><?php echo (int)$user['leave_balance']; ?> day(s)</td>
+                <td>
+                  <div class="dropdown text-end">
+                    <button class="btn btn-sm btn-link text-body-tertiary" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      <span class="material-symbols-outlined scale-125">more_horiz</span>
+                    </button>
+                  </div>
+                </td>
               </tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
-      </div>
+            <?php
+            endwhile;
+          else:
+            echo '<tr><td colspan="6" class="text-center text-muted">No users found.</td></tr>';
+          endif;
+          ?>
+        </tbody>
+      </table>
     </div>
 
   </div>
@@ -108,15 +111,3 @@ $firstname = $_SESSION['firstname'];
 <!-- Footer -->
 <?php include 'includes/footer.php'; ?>
 <!-- End Footer -->
-
-<!-- Clickable Row Script -->
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-  const rows = document.querySelectorAll(".clickable-row");
-  rows.forEach(row => {
-    row.addEventListener("click", () => {
-      window.location = row.dataset.href;
-    });
-  });
-});
-</script>
