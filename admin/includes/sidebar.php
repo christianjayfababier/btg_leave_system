@@ -187,7 +187,6 @@
                 <div class="collapse " id="customers">
                   <nav class="nav nav-pills">
                     <a class="nav-link " href="employee.php">Employee</a>
-                    <a class="nav-link " href="#">My Leave Applications </a>
                   </nav>
                 </div>
               </div>
