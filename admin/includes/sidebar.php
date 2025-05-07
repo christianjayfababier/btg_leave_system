@@ -159,7 +159,7 @@
                   aria-expanded="false"
                   aria-controls="pending_leave_applications"
                 >
-                <span class="material-symbols-outlined me-3">description</span> Pending Leave Applications
+                <span class="material-symbols-outlined me-3">description</span>Leave Applications
                 </a>
                 <div class="collapse " id="pending_leave_applications">
                   <nav class="nav nav-pills">
@@ -182,12 +182,12 @@
                   aria-expanded="false"
                   aria-controls="customers"
                 >
-                  <span class="material-symbols-outlined me-3">group</span> Leave Management
+                  <span class="material-symbols-outlined me-3">group</span> Manage Employee
                 </a>
                 <div class="collapse " id="customers">
                   <nav class="nav nav-pills">
-                    <a class="nav-link " href="apply_for_leave.php">Apply for Leave</a>
-                    <a class="nav-link " href="my_leave_application.php">My Leave Applications </a>
+                    <a class="nav-link " href="employee.php">Employee</a>
+                    <a class="nav-link " href="#">My Leave Applications </a>
                   </nav>
                 </div>
               </div>
