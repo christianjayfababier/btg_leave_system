@@ -16,14 +16,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Calculate duration in days
-    $start = strtotime($start_date);
-    $end = strtotime($end_date);
-    $days = ($end - $start) / (60 * 60 * 24) + 1;
-
-    if ($days <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid date range.']);
+    $start = new DateTime($start_date);
+    $end = new DateTime($end_date);
+    $interval = $start->diff($end);
+    $days = $interval->days + 1; // +1 to include both start and end dates
+    
+    if ($start > $end) {
+        echo json_encode(['status' => 'error', 'message' => 'Start date cannot be after end date.']);
         exit;
     }
+                 
 
     $conn->begin_transaction();
 

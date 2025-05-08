@@ -15,15 +15,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    // Calculate duration in days
-    $start = strtotime($start_date);
-    $end = strtotime($end_date);
-    $days = ($end - $start) / (60 * 60 * 24) + 1;
+    // Calculate duration in days   
+    $start = new DateTime($start_date);
+    $end = new DateTime($end_date);
+    $interval = $start->diff($end);
+    $days = $interval->days + 1; // +1 to include both start and end dates
 
-    if ($days <= 0) {
-        echo json_encode(['status' => 'error', 'message' => 'Invalid date range.']);
+    if ($start > $end) {
+        echo json_encode(['status' => 'error', 'message' => 'Start date cannot be after end date.']);
         exit;
     }
+
+    // Get current balance
+    $stmt = $conn->prepare("SELECT leave_balance FROM users WHERE id = ?");
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
+    $stmt->bind_result($current_balance);
+    $stmt->fetch();
+    $stmt->close();
+
+    // Check if balance is sufficient
+    if ($current_balance === null) {
+        echo json_encode(['status' => 'error', 'message' => 'User not found.']);
+        exit;
+    }
+
+    if ($current_balance < $days) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'You currently have no remaining leave days. Please review your leave balance or contact admin for further assistance.'
+        ]);
+        exit;
+    }
+
+
 
     $conn->begin_transaction();
 

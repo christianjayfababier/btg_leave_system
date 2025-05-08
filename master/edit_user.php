@@ -31,7 +31,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = mysqli_real_escape_string($conn, $_POST['username']);
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $role = mysqli_real_escape_string($conn, $_POST['role']);
-    $status = mysqli_real_escape_string($conn, $_POST['status']);
     $leave_balance = intval($_POST['leave_balance']);
 
     $update = "UPDATE users SET 
@@ -40,12 +39,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         username='$username', 
         email='$email', 
         role='$role', 
-        status='$status',
         leave_balance=$leave_balance 
         WHERE id=$id";
 
     if (mysqli_query($conn, $update)) {
-        header("Location: view_user.php?id=$id");
+        header("Location: employee.php");
         exit();
     } else {
         $error = "Failed to update user: " . mysqli_error($conn);

@@ -115,6 +115,26 @@ $firstname = $_SESSION['firstname'] ?? "";
   </div>
 </div>
 
+
+<!-- No Leave Balance Modal -->
+<div class="modal fade" id="noLeaveModal" tabindex="-1" aria-labelledby="noLeaveModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="noLeaveModalLabel">Leave Request Denied</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        You currently have no remaining leave days.<br>
+        Please review your leave balance or contact admin for further assistance.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Scripts -->
 <script>
   const startDateInput = document.getElementById('start_date');
@@ -159,13 +179,19 @@ $firstname = $_SESSION['firstname'] ?? "";
     .then(response => response.json())
     .then(data => {
       if (data.status === 'success') {
-        const successModal = new bootstrap.Modal(document.getElementById('successModal'));
-        successModal.show();
-        form.reset();
-        daysWrapper.style.display = 'none';
+  const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+  successModal.show();
+  form.reset();
+  daysWrapper.style.display = 'none';
+} else {
+      if (data.message.includes('no remaining leave days')) {
+        const noLeaveModal = new bootstrap.Modal(document.getElementById('noLeaveModal'));
+        noLeaveModal.show();
       } else {
         alert(data.message || 'An error occurred while submitting the leave request.');
       }
+    }
+
     })
     .catch(error => {
       console.error('Error:', error);

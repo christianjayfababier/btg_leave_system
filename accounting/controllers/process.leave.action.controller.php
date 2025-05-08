@@ -41,49 +41,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->fetch();
     $stmt->close();
 
-    // Prepare update
+    // Start transaction
+    $conn->begin_transaction();
     $newStatus = ($action === 'approve') ? 'approved' : 'denied';
 
-    if ($newStatus === 'approved') {
-        $stmt = $conn->prepare("
-            UPDATE leave_requests 
-            SET status = ?, decision_timestamp = NOW(), approved_by = ? 
-            WHERE id = ?
-        ");
+    try {
+        if ($newStatus === 'approved') {
+            // Approve logic
+            $stmt = $conn->prepare("
+                UPDATE leave_requests 
+                SET status = ?, decision_timestamp = NOW(), approved_by = ? 
+                WHERE id = ?
+            ");
+            if (!$stmt) throw new Exception('Database error during approval.');
+            $stmt->bind_param("sii", $newStatus, $managerId, $requestId);
+            $stmt->execute();
+            $stmt->close();
 
-        if (!$stmt) {
-            $_SESSION['flash_error'] = 'Database error: ' . $conn->error;
-            header("Location: ../review_leave.php?id={$requestId}");
-            exit();
+        } else {
+            // Fetch leave dates for denied request
+            $stmt = $conn->prepare("SELECT start_date, end_date FROM leave_requests WHERE id = ?");
+            $stmt->bind_param("i", $requestId);
+            $stmt->execute();
+            $stmt->bind_result($start_date, $end_date);
+            $stmt->fetch();
+            $stmt->close();
+
+            $start = new DateTime($start_date);
+            $end = new DateTime($end_date);
+            $days = $start->diff($end)->days + 1;
+
+            // Deny the request
+            $stmt = $conn->prepare("
+                UPDATE leave_requests 
+                SET status = ?, decision_timestamp = NOW() 
+                WHERE id = ?
+            ");
+            if (!$stmt) throw new Exception('Database error during denial.');
+            $stmt->bind_param("si", $newStatus, $requestId);
+            $stmt->execute();
+            $stmt->close();
+
+            // Restore leave balance
+            $stmt = $conn->prepare("UPDATE users SET leave_balance = leave_balance + ? WHERE id = ?");
+            $stmt->bind_param("ii", $days, $userId);
+            $stmt->execute();
+            $stmt->close();
         }
 
-        $stmt->bind_param("sii", $newStatus, $managerId, $requestId);
-
-    } else {
-        $stmt = $conn->prepare("
-            UPDATE leave_requests 
-            SET status = ?, decision_timestamp = NOW() 
-            WHERE id = ?
-        ");
-
-        if (!$stmt) {
-            $_SESSION['flash_error'] = 'Database error: ' . $conn->error;
-            header("Location: ../review_leave.php?id={$requestId}");
-            exit();
-        }
-
-        $stmt->bind_param("si", $newStatus, $requestId);
-    }
-
-    // Execute update
-    if ($stmt->execute()) {
-        $actionMessage = ($newStatus === 'approved') ? 'approved' : 'rejected';
+        $conn->commit();
+        $actionMessage = ($newStatus === 'approved') ? 'approved' : 'rejected and balance restored';
         $_SESSION['flash_success'] = "Leave request has been {$actionMessage}.";
-    } else {
-        $_SESSION['flash_error'] = 'Failed to update leave request. Please try again.';
+    } catch (Exception $e) {
+        $conn->rollback();
+        $_SESSION['flash_error'] = 'Failed to process leave action: ' . $e->getMessage();
     }
 
-    $stmt->close();
     header("Location: ../review_leave.php?id={$requestId}");
     exit();
 } else {
