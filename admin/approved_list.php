@@ -2,9 +2,10 @@
 session_start();
 require_once '../config.php';
 
-if (!isset($_SESSION["role"], $_SESSION["user_id"]) || $_SESSION["role"] !== 'admin') {
-    header('Location: ../index.php');
-    exit();
+// Ensure the user is logged in and is a manager
+if (!isset($_SESSION["role"], $_SESSION["user_id"], $_SESSION["firstname"]) || $_SESSION["role"] !== 'admin') {
+  header('Location: ../index.php');
+  exit();
 }
 
 $loggedInUserId = $_SESSION['user_id'];

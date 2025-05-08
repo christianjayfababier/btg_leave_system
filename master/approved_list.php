@@ -2,10 +2,9 @@
 session_start();
 require_once '../config.php';
 
-// Ensure the user is logged in and is a manager
-if (!isset($_SESSION["role"], $_SESSION["user_id"], $_SESSION["firstname"]) || $_SESSION["role"] !== 'admin') {
-  header('Location: ../index.php');
-  exit();
+if (!isset($_SESSION["role"], $_SESSION["user_id"], $_SESSION["firstname"]) || $_SESSION["role"] !== 'master') {
+    header('Location: ../index.php');
+    exit();
 }
 
 $loggedInUserId = $_SESSION['user_id'];
@@ -15,7 +14,7 @@ $leaveTypeLabels = [
   'personal' => 'Personal Leave'
 ];
 
-$deniedRequests = [];
+$approvedRequests = [];
 
 if ($stmt = $conn->prepare("
   SELECT 
@@ -29,18 +28,19 @@ if ($stmt = $conn->prepare("
   FROM leave_requests lr
   JOIN user_assignments ua ON lr.user_id = ua.assignee_id
   JOIN users u ON lr.user_id = u.id
-  WHERE ua.approver_id = ? AND lr.status = 'denied'
+  WHERE ua.approver_id = ? AND lr.status = 'approved'
   ORDER BY lr.start_date DESC
 ")) {
     $stmt->bind_param("i", $loggedInUserId);
     $stmt->execute();
     $result = $stmt->get_result();
     while ($row = $result->fetch_assoc()) {
-        $deniedRequests[] = $row;
+        $approvedRequests[] = $row;
     }
     $stmt->close();
 }
 ?>
+
 
  <!-- Head -->
  <?php include 'includes/head.php';?>
@@ -73,7 +73,7 @@ if ($stmt = $conn->prepare("
             San Francisco, CA –&nbsp;<span>8:00 PM</span>
           </div>
           <div class="col-12 col-md order-md-0 text-center text-md-start">
-          <h1>Denied Application List</h1>
+          <h1>Approved Application List</h1>
           </div>
         </div>
 
@@ -82,7 +82,7 @@ if ($stmt = $conn->prepare("
 
     <div class="card mb-6">
       <div class="card-header">
-        <h3 class="fs-6 mb-0">Denied Applications</h3>
+        <h3 class="fs-6 mb-0">Approved Applications</h3>
       </div>
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -97,8 +97,8 @@ if ($stmt = $conn->prepare("
             </tr>
           </thead>
           <tbody>
-            <?php if (!empty($deniedRequests)): ?>
-              <?php foreach ($deniedRequests as $leave): ?>
+            <?php if (!empty($approvedRequests)): ?>
+              <?php foreach ($approvedRequests as $leave): ?>
                 <tr>
                   <td><strong><?php echo htmlspecialchars($leave['firstname'] . ' ' . $leave['lastname']); ?></strong></td>
                   <td><?php echo htmlspecialchars($leaveTypeLabels[$leave['leave_type']] ?? ucfirst($leave['leave_type'])); ?></td>
@@ -107,11 +107,11 @@ if ($stmt = $conn->prepare("
                   <td>
                     <?php echo (strtotime($leave['end_date']) - strtotime($leave['start_date'])) / (60 * 60 * 24) + 1; ?> days
                   </td>
-                  <td><span class="badge bg-danger">Denied</span></td>
+                  <td><span class="badge bg-success">Approved</span></td>
                 </tr>
               <?php endforeach; ?>
             <?php else: ?>
-              <tr><td colspan="6" class="text-center text-muted">No denied leave requests found.</td></tr>
+              <tr><td colspan="6" class="text-center text-muted">No approved leave requests found.</td></tr>
             <?php endif; ?>
           </tbody>
         </table>

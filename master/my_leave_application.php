@@ -1,10 +1,9 @@
 <?php
 session_start();
 
-// Ensure the user is logged in and is a manager
-if (!isset($_SESSION["role"], $_SESSION["user_id"], $_SESSION["firstname"]) || $_SESSION["role"] !== 'admin') {
-  header('Location: ../index.php');
-  exit();
+if (!isset($_SESSION["role"]) || $_SESSION["role"] !== 'master') {
+    header('Location: ../index.php');
+    exit();
 }
 
 $pageTitle = "Staff Dashboard";
