@@ -166,6 +166,7 @@
                     <a class="nav-link " href="pending_leave_application_list.php">Pending Leave Application List</a>
                     <a class="nav-link " href="approved_list.php">Approved List</a>
                     <a class="nav-link " href="denied_list.php">Denied List </a>
+                    <a class="nav-link " href="all_approved_list.php">All Approved Leaves </a>
                   </nav>
                 </div>
               </div>
